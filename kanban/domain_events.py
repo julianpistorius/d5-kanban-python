@@ -1,0 +1,4 @@
+
+class DomainEvent:
+    pass
+
