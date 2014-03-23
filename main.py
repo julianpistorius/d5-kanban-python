@@ -1,7 +1,7 @@
 from infrastructure.event_sourced_repos.board_repository import BoardRepository
 from infrastructure.event_store import EventStore
-from kanban.board import start_project
-from kanban.domain_event_subscriber import PersistenceSubscriber
+from kanban.domain.model.board import start_project
+from infrastructure.domain_event_subscriber import PersistenceSubscriber
 from kanban.events import hub
 
 def main():
@@ -14,7 +14,12 @@ def main():
 
     board.name = "Another name"
     board.description = "A different description"
-    board.discard()
+
+    board.add_new_column("To do", 20)
+    board.add_new_column("Doing", 3)
+    board.add_new_column("Done", 30)
+
+    #board.discard()
 
     #code.interact(local=locals())
 

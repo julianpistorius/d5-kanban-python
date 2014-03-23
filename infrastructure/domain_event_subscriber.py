@@ -1,5 +1,3 @@
-from .events import hub # Replace with dependency injection
-
 class PersistenceSubscriber:
 
     def __init__(self, hub, event_store):

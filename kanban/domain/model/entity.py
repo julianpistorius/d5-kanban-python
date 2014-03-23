@@ -1,4 +1,4 @@
-from kanban.domain_events import DomainEvent
+from kanban.domain.model.domain_events import DomainEvent
 
 
 class Entity:

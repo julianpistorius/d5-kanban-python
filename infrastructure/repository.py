@@ -2,6 +2,7 @@ import importlib
 from kanban.events import hub
 
 
+# TODO: This needs to be some sort of base class, which can be extended
 def reconstitute(events_stream):
     entity = None
 

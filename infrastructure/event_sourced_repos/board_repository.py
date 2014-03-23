@@ -1,5 +1,5 @@
 from infrastructure.repository import reconstitute
-from kanban.board import Repository
+from kanban.domain.model.board import Repository
 
 
 class BoardRepository(Repository):
