@@ -1,6 +1,8 @@
 from abc import ABCMeta, abstractmethod
 import uuid
 
+from singledispatch import singledispatch
+
 from kanban.events import hub as the_hub
 from infrastructure.itertools import exactly_one
 from kanban.domain.model.domain_events import DomainEvent
@@ -12,22 +14,20 @@ class Board(Entity):
     class Created(Entity.Created):
         pass
 
+    class Discarded(Entity.Discarded):
+        pass
+
     class NewColumnInserted(DomainEvent):
         pass
 
     class NewColumnAdded(DomainEvent):
         pass
 
-    def __init__(self, id, version, name, description, hub=None):
-        super().__init__(id, version, hub)
-        self._name = name
-        self._description = description
+    def __init__(self, event, hub=None):
+        super().__init__(event.originator_id, event.originator_version, hub)
+        self._name = event.name
+        self._description = event.description
         self._columns = []
-        self._publish(Board.Created,
-                      id=self.id,
-                      version=self.version,
-                      name=name,
-                      description=self._description)
 
     @property
     def name(self):
@@ -37,8 +37,12 @@ class Board(Entity):
     def name(self, value):
         if len(value) < 1:
             raise ValueError("Board name cannot be empty")
-        self._name = value
-        self._attribute_changed(Board.name)
+        event = Entity.AttributeChanged(originator_id=self.id,
+                                        originator_version=self.version,
+                                        name='_name',
+                                        value=value)
+        self._mutate(event)
+        self._publish(event)
 
     @property
     def description(self):
@@ -48,54 +52,65 @@ class Board(Entity):
     def description(self, value):
         if len(value) < 1:
             raise ValueError("Board description cannot be empty")
-        self._description = value
-        self._attribute_changed(Board.description)
+        event = Entity.AttributeChanged(originator_id=self.id,
+                                        originator_version=self.version,
+                                        name='_description',
+                                        value=value)
+        self._mutate(event)
+        self._publish(event)
 
-    def insert_new_column_before(self, succeeding_column, name, wip_limit):
-        index = self._columns.index(succeeding_column)
-        column = Column(id=uuid.uuid4().hex,
-                        version=0,
-                        name=name,
-                        wip_limit=wip_limit,
-                        hub=self._hub)
-        self._columns.insert(index, column)
-        self._publish(Board.NewColumnInserted,
-                      id=self.id,
-                      new_column_id=column.id,
-                      succeeding_column_id=succeeding_column.id)
+    def discard(self):
+        event = Board.Discarded(originator_id=self.id,
+                                originator_version=self.version)
+
+        self._mutate(event)
+        self._publish(event)
 
     def add_new_column(self, name, wip_limit):
-        column = Column(id=uuid.uuid4().hex,
-                        version=0,
-                        name=name,
-                        wip_limit=wip_limit,
-                        hub=self._hub)
-        self._columns.append(column)
-        self._publish(Board.NewColumnAdded,
-                      id=self.id,
-                      new_column_id=column.id)
+        event = Board.NewColumnAdded(originator_id=self.id,
+                                     originator_version=self.version,
+                                     column_id=uuid.uuid4().hex,
+                                     column_version=0,
+                                     name=name,
+                                     wip_limit=wip_limit)
+        self._mutate(event)
+        self._publish(event)
 
-    # TODO: Removing a board implies removing it's columns
+    def insert_new_column_before(self, succeeding_column, name, wip_limit):
+        event = Board.NewColumnInserted(originator_id=self.id,
+                                        originator_version=self.version,
+                                        column_id=uuid.uuid4().hex,
+                                        column_version=0,
+                                        column_name=name,
+                                        wip_limit=wip_limit,
+                                        succeeding_column_id=succeeding_column.id)
+        self._mutate(event)
+        self._publish(event)
 
+    # TODO: Remove a column
 
+    def _column_index_with_id(self, id):
+        for index, column in enumerate(self._columns):
+            if column.id == id:
+                return index
+        raise ValueError("No column with id {}".format(id))
 
+    def _mutate(self, event):
+        _when(event, self)
 
 class Column(Entity):
 
     class Created(Entity.Created):
         pass
 
-    def __init__(self, id, version, name, wip_limit, hub):
-        super().__init__(id, version, hub)
+    def __init__(self, event, hub):
+        "NOT PART OF API"
+        super().__init__(event.column_id, event.column_version, hub)
+        # TODO: Should a column have a reference to its parent Board?
         # TODO: Validation - and point out refactoring opportunity stymied by event design
-        self._name = name
-        self._wip_limit = wip_limit
+        self._name = event.name
+        self._wip_limit = event.wip_limit
         self._work_item_ids = []
-        self._publish(Column.Created,
-                      id=self.id,
-                      version=self.version,
-                      name=name,
-                      wip_limit=wip_limit)
 
     @property
     def name(self):
@@ -105,8 +120,14 @@ class Column(Entity):
     def name(self, value):
         if len(value) < 1:
             raise ValueError("Column name cannot be empty")
-        self._name = value
-        self._attribute_changed(Column.name)
+
+        event = Entity.AttributeChanged(originator_id=self.id,
+                                        originator_version=self.version,
+                                        name='_name',
+                                        value=value)
+        self._mutate(self, event)
+        self._publish(self, event)
+
 
     @property
     def wip_limit(self):
@@ -117,14 +138,71 @@ class Column(Entity):
         if value < len(self._work_item_ids):
             raise ValueError("Requested WIP limit ({}) cannot cannot be less than the "
                              "current amount of WIP ({})".format(value, len(self._work_item_ids)))
-        self._wip_limit = value
-        self._attribute_changed(Column.wip_limit)
+
+        event = Entity.AttributeChanged(originator_id=self.id,
+                                        originator_version=self.version,
+                                        name='_wip_limit',
+                                        value=value)
+        self._mutate(self, event)
+        self._publish(self, event)
+
+    def _mutate(self, event):
+        _when(event, self)
 
 
+# These dispatch on the type of the first arg, hence (event, self)
+@singledispatch
+def _when(event, obj):
+    raise NotImplemented("No _when() implementation for {}".format(repr(event)))
+
+
+@_when.register(Entity.AttributeChanged)
+def _(event, entity):
+    entity._validate_event_originator(event)
+    setattr(entity, event.name, event.value)
+    entity._increment_version()
+
+
+@_when.register(Board.NewColumnAdded)
+def _(event, board):
+    board._validate_event_originator(event)
+
+    column = Column(event, hub=board._hub)
+
+    board._columns.append(column)
+    board._increment_version()
+
+
+@_when.register(Board.NewColumnInserted)
+def _(event, board):
+    board._validate_event_originator(event)
+
+    index = board._column_index_with_id(event.succeeding_column_id)
+
+    column = Column(event, hub=board._hub)
+
+    board._columns.insert(index, column)
+    board._increment_version()
+
+@_when.register(Board.Discarded)
+def _(event, board):
+    board._validate_event_originator(event)
+    board._discarded = True
+    # TODO: Need to remove any child columns too
+    # TODO: Should we set some sort of flag in the Entity base to prevent further use?
+    # TODO: Remove any cached aggregates from the repository
 
 def start_project(name, description):
     board_id = uuid.uuid4().hex
-    return Board(id=board_id, version=0, name=name, description=description, hub=the_hub()) # Inject the hub!
+
+    event = Board.Created(originator_id=board_id,
+                          originator_version=0,
+                          name=name,
+                          description=description)
+
+    board = Board(event, hub=the_hub()) # Inject the hub!
+    board._publish(event)
+    return board
 
 
 class Repository:

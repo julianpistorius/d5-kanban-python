@@ -6,7 +6,7 @@ class Entity:
     class Created(DomainEvent):
         pass
 
-    class Deleted(DomainEvent):
+    class Discarded(DomainEvent):
         pass
 
     class AttributeChanged(DomainEvent):
@@ -16,6 +16,7 @@ class Entity:
         self._id = id
         self._version = version
         self._hub = hub
+        self._discarded = False
 
     def _increment_version(self):
         self._version += 1
@@ -28,20 +29,15 @@ class Entity:
     def version(self):
         return self._version
 
-    def _publish(self, topic, *args, **kwargs):
+    def _publish(self, event):
         if self._hub:
-            self._hub.publish(topic, *args, **kwargs)
+            self._hub.publish(event)
 
-    def _attribute_changed(self, attr):
-        self._increment_version()
-        self._publish(Entity.AttributeChanged,
-                      id=self.id,
-                      version=self.version,
-                      name=attr.fget.__name__,
-                      value=attr.fget(self))
+    def _validate_event_originator(self, event):
+        if event.originator_id != self.id:
+            raise RuntimeError("Event mismatch id mismatch")
+        if event.originator_version != self.version:
+            raise RuntimeError("Event version mismatch")
 
-    def discard(self):
-        self._publish(Entity.Deleted,
-                    id=self.id,
-                    version=self.version)
-        self._hub = None
+    # TODO: Removing a board implies removing it's columns
+

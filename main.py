@@ -19,12 +19,12 @@ def main():
     board.add_new_column("Doing", 3)
     board.add_new_column("Done", 30)
 
-    #board.discard()
+    board.discard()
 
     #code.interact(local=locals())
 
-    board_repo = BoardRepository(es)
-    board_2 = board_repo.board_with_id(board_id)
+    #board_repo = BoardRepository(es)
+    #board_2 = board_repo.board_with_id(board_id)
 
     pass
 

@@ -1,18 +1,19 @@
 import datetime
 import json
 
+
 class EventStore:
 
     def __init__(self, store_path):
         self._store_path = store_path
 
 
-    def append(self, topic, *args, **kwargs):
+    def append(self, topic, **attributes):
         with open(self._store_path, 'a+t') as store_file:
             event = dict(timestamp=datetime.datetime.now(datetime.timezone.utc).timestamp(),
                          topic=topic,
-                         args=args, kwargs=kwargs)
-            json.dump(event, store_file, separators=(',',':'), sort_keys=True)
+                         attributes=attributes)
+            json.dump(event, store_file, separators=(',',':'), sort_keys=True, cls=ObjectJSONEncoder)
             store_file.write('\n')
 
     def open_event_stream(self, predicate=lambda event: True):
@@ -42,3 +43,14 @@ class EventStream:
             event = json.loads(line)
             if self._predicate(event):
                 return event
+
+
+class ObjectJSONEncoder(json.JSONEncoder):
+
+    def default(self, obj):
+        try:
+            return json.JSONEncoder.default(self, obj)
+        except TypeError as e:
+            if "not JSON serializable" not in str(e):
+                raise
+            return obj.__dict__
