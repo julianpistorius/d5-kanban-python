@@ -13,7 +13,10 @@ class MessageHub:
             self._event_handlers[event_predicate].discard(subscriber)
 
     def publish(self, event):
+        matching_handlers = set()
         for event_predicate, handlers in self._event_handlers.items():
             if event_predicate(event):
-                for handler in handlers:
-                    handler(event)
+                matching_handlers.update(handlers)
+
+        for handler in matching_handlers:
+            handler(event)
