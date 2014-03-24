@@ -8,7 +8,9 @@ from utility.utilities import exactly_one
 from kanban.domain.model.domain_events import DomainEvent
 from kanban.domain.model.entity import Entity
 
-
+# ======================================================================================================================
+# Aggregate root entity
+#
 class Board(Entity):
 
     class Created(Entity.Created):
@@ -31,7 +33,6 @@ class Board(Entity):
         self._name = event.name
         self._description = event.description
         self._columns = []
-        self._increment_version()  # Required at the end of all mutators - this is no exception
 
     def __repr__(self):
         return "{d}Board(id={b._id}, name={b._name!r}, description={b._description!r}, columns=[0..{n}])".format(
@@ -53,7 +54,7 @@ class Board(Entity):
                                         originator_version=self.version,
                                         name='_name',
                                         value=value)
-        self._mutate(event)
+        self._apply(event)
         self._publish(event)
 
     @property
@@ -70,7 +71,7 @@ class Board(Entity):
                                         originator_version=self.version,
                                         name='_description',
                                         value=value)
-        self._mutate(event)
+        self._apply(event)
         self._publish(event)
 
     def discard(self):
@@ -78,7 +79,7 @@ class Board(Entity):
         event = Board.Discarded(originator_id=self.id,
                                 originator_version=self.version)
 
-        self._mutate(event)
+        self._apply(event)
         self._publish(event)
 
     def add_new_column(self, name, wip_limit):
@@ -89,7 +90,7 @@ class Board(Entity):
                                      column_version=0,
                                      name=name,
                                      wip_limit=wip_limit)
-        self._mutate(event)
+        self._apply(event)
         self._publish(event)
         return self.column_with_name(name) # Convenience?
 
@@ -102,7 +103,7 @@ class Board(Entity):
                                         column_name=name,
                                         wip_limit=wip_limit,
                                         succeeding_column_id=succeeding_column.id)
-        self._mutate(event)
+        self._apply(event)
         self._publish(event)
         return self.column_with_name(name) # Convenience?
 
@@ -113,7 +114,7 @@ class Board(Entity):
         event = Board.ColumnRemoved(originator_id=self.id,
                                     originator_version=self.version,
                                     column_id=column_id)
-        self._mutate(event)
+        self._apply(event)
         self._publish(event)
 
     def remove_column(self, column):
@@ -122,7 +123,7 @@ class Board(Entity):
         event = Board.ColumnRemoved(originator_id=self.id,
                                     originator_version=self.version,
                                     column_id=column.id)
-        self._mutate(event)
+        self._apply(event)
         self._publish(event)
 
 
@@ -151,8 +152,12 @@ class Board(Entity):
                 return index
         raise ValueError("No column with id '{}'".format(id))
 
-    def _mutate(self, event):
-        _when(event, self)
+    def _apply(self, event):
+        _mutate(self, event)
+
+# ======================================================================================================================
+# Entities
+#
 
 class Column(Entity):
 
@@ -163,7 +168,7 @@ class Column(Entity):
         "NOT PART OF API"
         super().__init__(event.column_id, event.column_version, hub)
         # TODO: Should a column have a reference to its parent Board?
-        # TODO: Validation - and point out refactoring opportunity stymied by event design
+        # TODO: Validation?
         self._name = event.name
         self._wip_limit = event.wip_limit
         self._work_item_ids = []
@@ -190,7 +195,7 @@ class Column(Entity):
                                         originator_version=self.version,
                                         name='_name',
                                         value=value)
-        self._mutate(event)
+        self._apply(event)
         self._publish(event)
 
 
@@ -210,21 +215,29 @@ class Column(Entity):
                                         originator_version=self.version,
                                         name='_wip_limit',
                                         value=value)
-        self._mutate(event)
+        self._apply(event)
         self._publish(event)
 
     def number_of_work_items(self):
         self._check_not_discarded()
         return len(self._work_item_ids)
+    
+    def _apply(self, event):
+        _mutate(self, event)
 
-    def _mutate(self, event):
-        _when(event, self)
 
+# ======================================================================================================================
+# Mutators - all aggregate creation and mutation is performed by the generic _when() function.
+#
+
+def _mutate(obj, event):
+    return _when(event, obj)
 
 # These dispatch on the type of the first arg, hence (event, self)
 @singledispatch
-def _when(event, obj):
-    raise NotImplemented("No _when() implementation for {}".format(repr(event)))
+def _when(event, entity):
+    """Modify an entity (usually an aggregate root) by replaying an event."""
+    raise NotImplemented("No _when() implementation for {!r}".format(event))
 
 
 @_when.register(Entity.AttributeChanged)
@@ -232,6 +245,15 @@ def _(event, entity):
     entity._validate_event_originator(event)
     setattr(entity, event.name, event.value)
     entity._increment_version()
+    return entity
+
+
+@_when.register(Board.Created)
+def _(event, hub):
+    """Create a new aggregate root"""
+    board = Board(event, hub)
+    board._increment_version()
+    return board
 
 
 @_when.register(Board.NewColumnAdded)
@@ -245,6 +267,7 @@ def _(event, board):
 
     board._columns.append(column)
     board._increment_version()
+    return board
 
 
 @_when.register(Board.NewColumnInserted)
@@ -260,6 +283,7 @@ def _(event, board):
 
     board._columns.insert(index, column)
     board._increment_version()
+    return board
 
 
 @_when.register(Board.ColumnRemoved)
@@ -273,6 +297,7 @@ def _(event, board):
     column._discarded = True
     del board._columns[index]
     board._increment_version()
+    return board
 
 
 @_when.register(Board.Discarded)
@@ -285,7 +310,12 @@ def _(event, board):
 
     board._discarded = True
     board._increment_version()
+    return board
 
+
+# ======================================================================================================================
+# Factories - the aggregate root factory
+#
 
 def start_project(name, description, hub=None):
     board_id = uuid.uuid4().hex
@@ -295,10 +325,16 @@ def start_project(name, description, hub=None):
                           name=name,
                           description=description)
 
-    board = Board(event, hub=hub)
+    board = _when(event, hub)
     board._publish(event)
     return board
 
+# ======================================================================================================================
+# Repository - for retrieving existing aggregates
+#
+
+def _apply_event(entity, event):
+    return _when(event, entity)
 
 class Repository:
     __metaclass__ = ABCMeta
@@ -308,12 +344,6 @@ class Repository:
 
     def all_boards(self):
         return self.boards_where(lambda board: True)
-
-    def board_with_id(self, id):
-        try:
-            return exactly_one(self.boards_where(lambda board: board.id == id))
-        except ValueError as e:
-            raise ValueError("No Board with id {}".format(id)) from e
 
     def board_with_name(self, name):
         try:
@@ -325,14 +355,7 @@ class Repository:
     def boards_where(self, predicate):
         raise NotImplemented
 
-    def _apply_event(self, board, event):
-        if isinstance(event, Board.Created):
-            if board is not None:
-                raise RuntimeError("Inconsistent event stream.")
-            return Board(event, self._hub)
-        _when(event, board)
-        return board
-
     def _apply_events(self, event_stream):
         """Current State is the left fold over previous behaviours - Greg Young"""
-        return reduce(self._apply_event, event_stream, None)
+
+        return reduce(_mutate, event_stream, self._hub)

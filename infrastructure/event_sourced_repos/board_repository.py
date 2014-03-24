@@ -1,7 +1,7 @@
 #from infrastructure.repository import reconstitute
 import importlib
 from utility.lrudict import LRUDict
-from utility.utilities import resolve_attr
+from utility.utilities import resolve_attr, exactly_one
 from kanban.domain.model.board import Repository
 
 
@@ -71,6 +71,13 @@ class BoardRepository(Repository):
 
         return board
 
+
+    # TODO: This is an implementation detail
+    def board_with_id(self, id):
+        try:
+            return exactly_one(self.boards_where(lambda board: board.id == id))
+        except ValueError as e:
+            raise ValueError("No Board with id {}".format(id)) from e
 
 # TODO: Find a better place for this function
 def deserialize_event(stored_event):

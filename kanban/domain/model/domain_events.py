@@ -12,3 +12,4 @@ class DomainEvent:
 
     def __repr__(self):
         return self.__class__.__qualname__ + "(" + ', '.join("{0}={1!r}".format(*item) for item in self.__dict__.items()) + ')'
+
