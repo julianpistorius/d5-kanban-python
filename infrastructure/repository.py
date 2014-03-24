@@ -1,5 +1,4 @@
 import importlib
-from kanban.events import hub
 
 
 # TODO: This needs to be some sort of base class, which can be extended
@@ -47,6 +46,6 @@ def reconstitute(events_stream):
         raise ValueError("No matching entity at event stream termination")
 
     # Enable message hub -  find a nicer way to do this
-    entity.hub_ = hub()
+    #entity.hub_ = hub()
     return entity
 

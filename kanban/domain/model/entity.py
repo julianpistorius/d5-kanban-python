@@ -23,10 +23,12 @@ class Entity:
 
     @property
     def id(self):
+        self._check_not_discarded()
         return self._id
 
     @property
     def version(self):
+        self._check_not_discarded()
         return self._version
 
     def _publish(self, event):
@@ -35,9 +37,11 @@ class Entity:
 
     def _validate_event_originator(self, event):
         if event.originator_id != self.id:
-            raise RuntimeError("Event mismatch id mismatch")
+            raise RuntimeError("Event originator id mismatch: {} != {}".format(event.originator_id, self.id))
         if event.originator_version != self.version:
-            raise RuntimeError("Event version mismatch")
+            raise RuntimeError("Event originator version mismatch: {} != {}".format(event.originator_version,
+                                                                                    self.version))
 
-    # TODO: Removing a board implies removing it's columns
-
+    def _check_not_discarded(self):
+        if self._discarded:
+            raise RuntimeError("Attempt to use {}".format(repr(self)))
