@@ -12,6 +12,19 @@ class BoardRepository(Repository):
         self._event_store = event_store
         self._cache = LRUDict(capacity=1000)
 
+    def all_boards(self):
+        board_ids = self._extant_board_ids()
+        return self._reconstitute_boards(board_ids)
+
+    def boards_where(self, predicate):
+        return filter(predicate, self.all_boards())
+
+    def board_with_id(self, id):
+        try:
+            return exactly_one(self.boards_where(lambda board: board.id == id))
+        except ValueError as e:
+            raise ValueError("No Board with id {}".format(id)) from e
+
     def _extant_board_ids(self):
         # Scan events to get a list of extant board ids
         board_ids = set()
@@ -41,13 +54,6 @@ class BoardRepository(Repository):
         all_boards = map(self._cached_reconstitute, grouped_board_events.values())
         return all_boards
 
-    def all_boards(self):
-        board_ids = self._extant_board_ids()
-        return self._reconstitute_boards(board_ids)
-
-    def boards_where(self, predicate):
-        return filter(predicate, self.all_boards())
-
     def _reconstitute(self, stored_event_sequence):
         deserialized_events = map(deserialize_event, stored_event_sequence)
         board = self._apply_events(deserialized_events)
@@ -71,13 +77,6 @@ class BoardRepository(Repository):
 
         return board
 
-
-    # TODO: This is an implementation detail
-    def board_with_id(self, id):
-        try:
-            return exactly_one(self.boards_where(lambda board: board.id == id))
-        except ValueError as e:
-            raise ValueError("No Board with id {}".format(id)) from e
 
 # TODO: Find a better place for this function
 def deserialize_event(stored_event):
