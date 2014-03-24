@@ -1,5 +1,6 @@
 from kanban.domain.model.domain_events import DomainEvent
 
+
 class PersistenceSubscriber:
 
     def __init__(self, hub, event_store):
@@ -10,7 +11,7 @@ class PersistenceSubscriber:
 
     @staticmethod
     def qualified_name(topic):
-        return topic.__module__ + '.' + topic.__class__.__qualname__
+        return topic.__module__ + '#' + topic.__class__.__qualname__
 
     def store_event(self, event):
         topic = self.qualified_name(event)

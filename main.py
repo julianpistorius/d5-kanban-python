@@ -29,16 +29,20 @@ def main():
     board.remove_column(doing_column)
 
     print(repr(doing_column))
-    print(doing_column.id)
+    #print(doing_column.id)
 
-    board.discard()
+    #board.discard()
 
-    print(todo_column.name)
+    #print(todo_column.name)
 
-    print(board.id)
+    #print(board.id)
 
-    board_repo = BoardRepository(es)
-    #board_2 = board_repo.board_with_id(board_id)
+    board_repo = BoardRepository(es, hub)
+    board_2 = board_repo.board_with_id(board_id)
+
+    board_3 = board_repo.board_with_id(board_id)
+
+    assert board_2 is board_3
 
     pass
 

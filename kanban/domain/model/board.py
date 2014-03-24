@@ -1,9 +1,10 @@
 from abc import ABCMeta, abstractmethod
+from functools import reduce
 import uuid
 
 from singledispatch import singledispatch
 
-from infrastructure.itertools import exactly_one
+from utility.utilities import exactly_one
 from kanban.domain.model.domain_events import DomainEvent
 from kanban.domain.model.entity import Entity
 
@@ -30,6 +31,7 @@ class Board(Entity):
         self._name = event.name
         self._description = event.description
         self._columns = []
+        self._increment_version()  # Required at the end of all mutators - this is no exception
 
     def __repr__(self):
         return "{d}Board(id={b._id}, name={b._name!r}, description={b._description!r}, columns=[0..{n}])".format(
@@ -165,6 +167,7 @@ class Column(Entity):
         self._name = event.name
         self._wip_limit = event.wip_limit
         self._work_item_ids = []
+        self._increment_version()  # Required at the end of all mutators - this is no exception
 
     def __repr__(self):
         return "{d}Column(id={c._id}, name={c._name!r}, wip_limit={c._wip_limit}, work_items=[0..{n}])".format(
@@ -300,6 +303,9 @@ def start_project(name, description, hub=None):
 class Repository:
     __metaclass__ = ABCMeta
 
+    def __init__(self, hub):
+        self._hub = hub
+
     def all_boards(self):
         return self.boards_where(lambda board: True)
 
@@ -318,3 +324,15 @@ class Repository:
     @abstractmethod
     def boards_where(self, predicate):
         raise NotImplemented
+
+    def _apply_event(self, board, event):
+        if isinstance(event, Board.Created):
+            if board is not None:
+                raise RuntimeError("Inconsistent event stream.")
+            return Board(event, self._hub)
+        _when(event, board)
+        return board
+
+    def _apply_events(self, event_stream):
+        """Current State is the left fold over previous behaviours - Greg Young"""
+        return reduce(self._apply_event, event_stream, None)
