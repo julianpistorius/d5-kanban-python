@@ -30,24 +30,58 @@ class WorkItem(Entity):
         self._check_not_discarded()
         return self._name
 
+    @staticmethod
+    def _validate_name(name):
+        if len(name) < 1:
+            raise ValueError("WorkItem name cannot be empty")
+        return name
+
     @name.setter
     def name(self, value):
         self._check_not_discarded()
-        if len(value) < 1:
-            raise ValueError("Board name cannot be empty")
+
         event = Entity.AttributeChanged(originator_id=self.id,
                                         originator_version=self.version,
                                         name='_name',
+                                        value=WorkItem._validate_name(value))
+        self._apply(event)
+        self._publish(event)
+
+    @property
+    def due_date(self):
+        self._check_not_discarded()
+        return self._due_date
+
+    @due_date.setter
+    def due_date(self, value):
+        self._check_not_discarded()
+        event = Entity.AttributeChanged(originator_id=self.id,
+                                        originator_version=self.version,
+                                        name='_due_date',
                                         value=value)
         self._apply(event)
         self._publish(event)
 
+    @property
+    def content(self):
+        self._check_not_discarded()
+        return self._content
+
+    @content.setter
+    def content(self, value):
+        self._check_not_discarded()
+        event = Entity.AttributeChanged(originator_id=self.id,
+                                        originator_version=self.version,
+                                        name='_content',
+                                        value=value)
+        self._apply(event)
+        self._publish(event)
 
 # ======================================================================================================================
 # Factories - the aggregate root factory
 #
 
-def register_new_work_item(self, name, due_date=None, content=None, hub=None):
+def register_new_work_item(name, due_date=None, content=None, hub=None):
     work_item_id = uuid.uuid4().hex
 
     event = WorkItem.Created(originator_id=work_item_id,
@@ -110,7 +144,7 @@ class Repository:
         super().__init__(**kwargs)
 
     def all_work_items(self):
-        return self.work_items_where(lambda board: True)
+        return self.work_items_where(lambda work_item: True)
 
     def works_items_with_name(self, name):
         return self.work_items_where(lambda work_item: work_item.name == name)
@@ -119,8 +153,8 @@ class Repository:
     def work_items_where(self, predicate):
         raise NotImplemented
 
-    def board_with_id(self, id):
+    def work_items_with_id(self, id):
         try:
             return exactly_one(self.work_items_where(lambda board: board.id == id))
         except ValueError as e:
-            raise ValueError("No Board with id {}".format(id)) from e
+            raise ValueError("No WorkItem with id {}".format(id)) from e

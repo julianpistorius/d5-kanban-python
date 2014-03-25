@@ -1,5 +1,6 @@
 import datetime
 import json
+from singledispatch import singledispatch
 
 
 class EventStore:
@@ -53,4 +54,12 @@ class ObjectJSONEncoder(json.JSONEncoder):
         except TypeError as e:
             if "not JSON serializable" not in str(e):
                 raise
-            return obj.__dict__
+            return to_jsonable(obj)
+
+@singledispatch
+def to_jsonable(obj):
+    return obj.__dict__
+
+@to_jsonable.register(datetime.date)
+def _(obj):
+    return obj.isoformat()

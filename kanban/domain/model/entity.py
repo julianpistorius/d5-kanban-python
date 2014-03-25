@@ -45,3 +45,4 @@ class Entity:
     def _check_not_discarded(self):
         if self._discarded:
             raise RuntimeError("Attempt to use {}".format(repr(self)))
+
