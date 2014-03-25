@@ -36,6 +36,12 @@ class Board(Entity):
     class AbandonWorkItem(DomainEvent):
         pass
 
+    class AdvanceWorkItem(DomainEvent):
+        pass
+
+    class RetireWorkItem(DomainEvent):
+        pass
+
     def __init__(self, event, hub=None):
         """DO NOT CALL DIRECTLY.
         """
@@ -202,7 +208,7 @@ class Board(Entity):
         if work_item in self:
             raise RuntimeError("{!r} is already scheduled".format(work_item))
 
-        if not self._columns[0].check_can_accept_work_item():
+        if not self._columns[0].can_accept_work_item():
             raise RuntimeError("Cannot schedule a work item to {}, "
                                "at or exceeding its work-in-progress limit".format(self._columns[0]))
 
@@ -244,7 +250,52 @@ class Board(Entity):
                 pass
         raise ValueError("Work Item with id={!r} is not on {!r}".format(work_item_id, self))
 
+    def advance_work_item(self, work_item):
+        """Advance a work item to the next column"""
+        self._check_not_discarded()
 
+        if work_item.discarded:
+            raise RuntimeError("Cannot advance {!r}".format(work_item))
+
+        column_index, priority = self._find_work_item_by_id(work_item.id)
+
+        next_column_index = column_index + 1
+        if next_column_index >= len(self._columns):
+            raise RuntimeError("Cannot advance {!r} from last column of {!r}".format(work_item, self))
+
+        if not self._columns[next_column_index].can_accept_work_item():
+            raise RuntimeError("Cannot schedule a work item to {}, "
+                               "at or exceeding its work-in-progress limit".format(self._columns[next_column_index]))
+
+        event = Board.AdvanceWorkItem(originator_id=self.id,
+                                      originator_version=self.version,
+                                      work_item_id=work_item.id,
+                                      source_column_index=column_index,
+                                      priority=priority)
+        self._apply(event)
+        self._publish(event)
+
+    def retire_work_item(self, work_item):
+        """Retire a work item, removing it from the final column"""
+        self._check_not_discarded()
+
+        if work_item.discarded:
+            raise RuntimeError("Cannot retire {!r}".format(work_item))
+
+        try:
+            priority = self._columns[-1]._work_item_ids.index(work_item.id)
+        except IndexError:
+            raise RuntimeError("Cannot retire a {!r} from a board with no columns".format(work_item))
+        except ValueError:
+            raise RuntimeError("{!r} not available for retiring from last column of {!r}".format(work_item, self))
+
+
+        event = Board.RetireWorkItem(originator_id=self.id,
+                                      originator_version=self.version,
+                                      work_item_id=work_item.id,
+                                      priority=priority)
+        self._apply(event)
+        self._publish(event)
 
     def _apply(self, event):
         mutate(self, event)
@@ -314,8 +365,8 @@ class Column(Entity):
         self._check_not_discarded()
         return len(self._work_item_ids)
 
-    def check_can_accept_work_item(self):
-        return (self.wip_limit is not None) and (self.number_of_work_items < self.wip_limit)
+    def can_accept_work_item(self):
+        return (self.wip_limit is None) or (self.number_of_work_items < self.wip_limit)
 
     def _apply(self, event):
         mutate(self, event)
@@ -374,9 +425,7 @@ def _(event, hub):
 @_when.register(Board.NewColumnAdded)
 def _(event, board):
     board._validate_event_originator(event)
-
     column = Column(event, board, hub=board._hub)
-
     board._columns.append(column)
     board._increment_version()
     return board
@@ -386,9 +435,7 @@ def _(event, board):
 def _(event, board):
     board._validate_event_originator(event)
     index = board._column_index_with_id(event.succeeding_column_id)
-
     column = Column(event, board, hub=board._hub)
-
     board._columns.insert(index, column)
     board._increment_version()
     return board
@@ -439,6 +486,29 @@ def _(event, board):
     column._increment_version()
     board._increment_version()
     return board
+
+
+@_when.register(Board.AdvanceWorkItem)
+def _(event, board):
+    board._validate_event_originator(event)
+    source_column = board._columns[event.source_column_index]
+    designated_work_item_id = source_column._work_item_ids[event.priority]
+    assert designated_work_item_id == event.work_item_id
+    source_column._work_item_ids.remove(event.work_item_id)
+    destination_column = board._columns[event.source_column_index + 1]
+    destination_column._work_item_ids.append(event.work_item_id)
+    return board
+
+
+@_when.register(Board.RetireWorkItem)
+def _(event, board):
+    board._validate_event_originator(event)
+    column = board._columns[-1]
+    designated_work_item_id = column._work_item_ids[event.priority]
+    assert designated_work_item_id == event.work_item_id
+    del column._work_item_ids[event.priority]
+    return board
+
 
 
 # ======================================================================================================================

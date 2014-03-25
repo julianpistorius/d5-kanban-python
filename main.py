@@ -56,6 +56,11 @@ def main():
 
     board.abandon_work_item(work_item_2)
 
+    board.advance_work_item(work_item_3)
+    board.advance_work_item(work_item_3)
+
+    board.retire_work_item(work_item_3)
+
     board_repo = BoardRepository(es, hub)
     board_2 = board_repo.board_with_id(board_id)
 
