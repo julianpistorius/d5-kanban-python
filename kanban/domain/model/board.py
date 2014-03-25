@@ -30,16 +30,16 @@ class Board(Entity):
     class ColumnRemoved(DomainEvent):
         pass
 
-    class ScheduleWorkItem(DomainEvent):
+    class WorkItemScheduled(DomainEvent):
         pass
 
-    class AbandonWorkItem(DomainEvent):
+    class WorkItemAbandoned(DomainEvent):
         pass
 
-    class AdvanceWorkItem(DomainEvent):
+    class WorkItemAdvanced(DomainEvent):
         pass
 
-    class RetireWorkItem(DomainEvent):
+    class WorkItemRetired(DomainEvent):
         pass
 
     def __init__(self, event, hub=None):
@@ -212,7 +212,7 @@ class Board(Entity):
             raise RuntimeError("Cannot schedule a work item to {}, "
                                "at or exceeding its work-in-progress limit".format(self._columns[0]))
 
-        event = Board.ScheduleWorkItem(originator_id=self.id,
+        event = Board.WorkItemScheduled(originator_id=self.id,
                                        originator_version=self.version,
                                        work_item_id=work_item.id)
         self._apply(event)
@@ -233,7 +233,7 @@ class Board(Entity):
 
         column_index, priority = self._find_work_item_by_id(work_item.id)
 
-        event = Board.AbandonWorkItem(originator_id=self.id,
+        event = Board.WorkItemAbandoned(originator_id=self.id,
                                       originator_version=self.version,
                                       work_item_id=work_item.id,
                                       column_index=column_index,
@@ -267,7 +267,7 @@ class Board(Entity):
             raise RuntimeError("Cannot schedule a work item to {}, "
                                "at or exceeding its work-in-progress limit".format(self._columns[next_column_index]))
 
-        event = Board.AdvanceWorkItem(originator_id=self.id,
+        event = Board.WorkItemAdvanced(originator_id=self.id,
                                       originator_version=self.version,
                                       work_item_id=work_item.id,
                                       source_column_index=column_index,
@@ -290,7 +290,7 @@ class Board(Entity):
             raise RuntimeError("{!r} not available for retiring from last column of {!r}".format(work_item, self))
 
 
-        event = Board.RetireWorkItem(originator_id=self.id,
+        event = Board.WorkItemRetired(originator_id=self.id,
                                       originator_version=self.version,
                                       work_item_id=work_item.id,
                                       priority=priority)
@@ -466,7 +466,7 @@ def _(event, board):
     return board
 
 
-@_when.register(Board.ScheduleWorkItem)
+@_when.register(Board.WorkItemScheduled)
 def _(event, board):
     board._validate_event_originator(event)
     column = board._columns[0]
@@ -476,7 +476,7 @@ def _(event, board):
     return board
 
 
-@_when.register(Board.AbandonWorkItem)
+@_when.register(Board.WorkItemAbandoned)
 def _(event, board):
     board._validate_event_originator(event)
     column = board._columns[event.column_index]
@@ -488,7 +488,7 @@ def _(event, board):
     return board
 
 
-@_when.register(Board.AdvanceWorkItem)
+@_when.register(Board.WorkItemAdvanced)
 def _(event, board):
     board._validate_event_originator(event)
     source_column = board._columns[event.source_column_index]
@@ -500,7 +500,7 @@ def _(event, board):
     return board
 
 
-@_when.register(Board.RetireWorkItem)
+@_when.register(Board.WorkItemRetired)
 def _(event, board):
     board._validate_event_originator(event)
     column = board._columns[-1]

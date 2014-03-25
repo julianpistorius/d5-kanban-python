@@ -1,4 +1,5 @@
 from datetime import date
+from infrastructure.event_sourced_repos.board_lead_time_projection import LeadTimeProjection
 from infrastructure.event_sourced_repos.board_repository import BoardRepository
 from infrastructure.event_sourced_repos.work_item_repository import WorkItemRepository
 from infrastructure.event_store import EventStore
@@ -63,6 +64,14 @@ def main():
 
     board_repo = BoardRepository(es, hub)
     board_2 = board_repo.board_with_id(board_id)
+
+    lead_time_projection = LeadTimeProjection(board_id, es, hub)
+    print(lead_time_projection.lead_time)
+
+    board.advance_work_item(work_item_1)
+    board.advance_work_item(work_item_1)
+    board.retire_work_item(work_item_1)
+    print(lead_time_projection.lead_time)
 
     pass
 

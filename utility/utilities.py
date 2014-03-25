@@ -1,3 +1,5 @@
+import datetime
+
 def exactly_one(iterable):
     i = iter(iterable)
     try:
@@ -18,3 +20,6 @@ def resolve_attr(obj, path):
     head, _, tail = path.partition('.')
     head_obj = getattr(obj, head)
     return resolve_attr(head_obj, tail)
+
+def utc_now():
+    return datetime.datetime.now(datetime.timezone.utc).timestamp()

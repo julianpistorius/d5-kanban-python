@@ -19,8 +19,8 @@ class StoredEventRepository:
         # noinspection PyArgumentList
         super().__init__(**kwargs)
 
-    def _extant_entity_ids(self):
-        """Scan events to get a list of extant board ids
+    def _extant_entity_ids(self): # TODO: Make this a free function
+        """Scan events to get a list of extant entity ids
         """
         entity_ids = set()
         with self._event_store.open_event_stream() as events:
@@ -41,20 +41,20 @@ class StoredEventRepository:
                     entity_ids.discard(entity_id)
         return entity_ids
 
-    def _reconstitute_entities(self, entity_ids):
+    def _reconstitute_entities(self, entity_ids): # TODO: Rename replay_events(self, originator_id)
         grouped_entity_events = {entity_id: [] for entity_id in entity_ids}
         with self._event_store.open_event_stream() as events:
             for event in events:
                 id = event['attributes']['originator_id']
                 if id in grouped_entity_events:
                     grouped_entity_events[id].append(event)
-        all_entities = map(self._reconstitute, grouped_entity_events.values())
+        all_entities = list(map(self._reconstitute, grouped_entity_events.values()))
         return all_entities
 
     def _reconstitute(self, stored_event_sequence):
-        deserialized_events = map(_deserialize_event, stored_event_sequence)
-        entity = self._apply_events(deserialized_events)
-        return entity
+        deserialized_events = list(map(_deserialize_event, stored_event_sequence))
+        obj = self._apply_events(deserialized_events)
+        return obj
 
     def _apply_events(self, event_stream):
         """Current State is the left fold over previous behaviours - Greg Young"""
