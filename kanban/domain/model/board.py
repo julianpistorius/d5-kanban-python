@@ -1,5 +1,5 @@
 from abc import ABCMeta, abstractmethod
-from functools import reduce
+
 import uuid
 
 from singledispatch import singledispatch
@@ -11,6 +11,7 @@ from kanban.domain.model.entity import Entity
 # ======================================================================================================================
 # Aggregate root entity
 #
+
 class Board(Entity):
 
     class Created(Entity.Created):
@@ -29,7 +30,10 @@ class Board(Entity):
         pass
 
     def __init__(self, event, hub=None):
+        """DO NOT CALL DIRECTLY.
+        """
         super().__init__(event.originator_id, event.originator_version, hub)
+        # Validation not necessary here - never called directly
         self._name = event.name
         self._description = event.description
         self._columns = []
@@ -45,15 +49,20 @@ class Board(Entity):
         self._check_not_discarded()
         return self._name
 
+    @staticmethod
+    def _validate_name(name):
+        if len(name) < 1:
+            raise ValueError("Board name cannot be empty")
+        return name
+
     @name.setter
     def name(self, value):
         self._check_not_discarded()
-        if len(value) < 1:
-            raise ValueError("Board name cannot be empty")
+
         event = Entity.AttributeChanged(originator_id=self.id,
                                         originator_version=self.version,
                                         name='_name',
-                                        value=value)
+                                        value=Board._validate_name(value))
         self._apply(event)
         self._publish(event)
 
@@ -62,15 +71,20 @@ class Board(Entity):
         self._check_not_discarded()
         return self._description
 
+    @staticmethod
+    def _validate_description(description):
+        if len(description) < 1:
+            raise ValueError("Board description cannot be empty")
+        return description
+
     @description.setter
     def description(self, value):
         self._check_not_discarded()
-        if len(value) < 1:
-            raise ValueError("Board description cannot be empty")
+
         event = Entity.AttributeChanged(originator_id=self.id,
                                         originator_version=self.version,
                                         name='_description',
-                                        value=value)
+                                        value=Board._validate_description(value))
         self._apply(event)
         self._publish(event)
 
@@ -82,17 +96,31 @@ class Board(Entity):
         self._apply(event)
         self._publish(event)
 
+    def _validate_column_name(self, name):
+        if len(name) < 1:
+            raise ValueError("Column name cannot be empty")
+        if name in {column.name for column in self._columns}:
+            raise ValueError("Column name {!r} is not distinct from existing column "
+                             "names in {!r}".format(name, self))
+        return name
+
+    @staticmethod
+    def _validate_column_wip_limit(wip_limit):
+        if wip_limit is not None and wip_limit < 0:
+            raise ValueError("Work-in-progress limit {!r} is neither None (no limit) nor non-negative".format(wip_limit))
+        return wip_limit
+
     def add_new_column(self, name, wip_limit):
         self._check_not_discarded()
         event = Board.NewColumnAdded(originator_id=self.id,
                                      originator_version=self.version,
                                      column_id=uuid.uuid4().hex,
                                      column_version=0,
-                                     name=name,
-                                     wip_limit=wip_limit)
+                                     column_name=self._validate_column_name(name),
+                                     wip_limit=Board._validate_column_wip_limit(wip_limit))
         self._apply(event)
         self._publish(event)
-        return self.column_with_name(name) # Convenience?
+        return self.column_with_name(name)
 
     def insert_new_column_before(self, succeeding_column, name, wip_limit):
         self._check_not_discarded()
@@ -100,12 +128,12 @@ class Board(Entity):
                                         originator_version=self.version,
                                         column_id=uuid.uuid4().hex,
                                         column_version=0,
-                                        column_name=name,
-                                        wip_limit=wip_limit,
+                                        column_name=self._validate_column_name(name),
+                                        wip_limit=Board._validate_column_wip_limit(wip_limit),
                                         succeeding_column_id=succeeding_column.id)
         self._apply(event)
         self._publish(event)
-        return self.column_with_name(name) # Convenience?
+        return self.column_with_name(name)
 
     def remove_column_by_name(self, name):
         self._check_not_discarded()
@@ -126,7 +154,6 @@ class Board(Entity):
         self._apply(event)
         self._publish(event)
 
-
     def column_names(self):
         self._check_not_discarded()
         for column in self._columns:
@@ -140,7 +167,7 @@ class Board(Entity):
         self._check_not_discarded()
         for column in self._columns:
             if column.name == name:
-                 return column
+                return column
         raise ValueError("No column with name '{}'".format(name))
 
     def _column_id_with_name(self, name):
@@ -153,7 +180,8 @@ class Board(Entity):
         raise ValueError("No column with id '{}'".format(id))
 
     def _apply(self, event):
-        _mutate(self, event)
+        mutate(self, event)
+
 
 # ======================================================================================================================
 # Entities
@@ -161,18 +189,14 @@ class Board(Entity):
 
 class Column(Entity):
 
-    class Created(Entity.Created):
-        pass
-
-    def __init__(self, event, hub):
-        "NOT PART OF API"
+    def __init__(self, event, board, hub):
+        "DO NOT CALL DIRECTLY"
         super().__init__(event.column_id, event.column_version, hub)
-        # TODO: Should a column have a reference to its parent Board?
-        # TODO: Validation?
-        self._name = event.name
-        self._wip_limit = event.wip_limit
+        # Validation not necessary here - never called directly
+        self._board = board
+        self._name = event.column_name
         self._work_item_ids = []
-        self._increment_version()  # Required at the end of all mutators - this is no exception
+        self._wip_limit = event.wip_limit
 
     def __repr__(self):
         return "{d}Column(id={c._id}, name={c._name!r}, wip_limit={c._wip_limit}, work_items=[0..{n}])".format(
@@ -188,13 +212,11 @@ class Column(Entity):
     @name.setter
     def name(self, value):
         self._check_not_discarded()
-        if len(value) < 1:
-            raise ValueError("Column name cannot be empty")
 
         event = Entity.AttributeChanged(originator_id=self.id,
                                         originator_version=self.version,
                                         name='_name',
-                                        value=value)
+                                        value=self._board._validate_column_name(value))
         self._apply(event)
         self._publish(event)
 
@@ -204,17 +226,15 @@ class Column(Entity):
         self._check_not_discarded()
         return self._wip_limit
 
+
     @wip_limit.setter
     def wip_limit(self, value):
         self._check_not_discarded()
-        if value < len(self._work_item_ids):
-            raise ValueError("Requested WIP limit ({}) cannot cannot be less than the "
-                             "current amount of WIP ({})".format(value, len(self._work_item_ids)))
 
         event = Entity.AttributeChanged(originator_id=self.id,
                                         originator_version=self.version,
                                         name='_wip_limit',
-                                        value=value)
+                                        value=Board._validate_column_wip_limit(value))
         self._apply(event)
         self._publish(event)
 
@@ -223,14 +243,31 @@ class Column(Entity):
         return len(self._work_item_ids)
     
     def _apply(self, event):
-        _mutate(self, event)
+        mutate(self, event)
+
+
+# ======================================================================================================================
+# Factories - the aggregate root factory
+#
+
+def start_project(name, description, hub=None):
+    board_id = uuid.uuid4().hex
+
+    event = Board.Created(originator_id=board_id,
+                          originator_version=0,
+                          name=Board._validate_name(name),
+                          description=Board._validate_description(description))
+
+    board = _when(event, hub)
+    board._publish(event)
+    return board
 
 
 # ======================================================================================================================
 # Mutators - all aggregate creation and mutation is performed by the generic _when() function.
 #
 
-def _mutate(obj, event):
+def mutate(obj, event):
     return _when(event, obj)
 
 # These dispatch on the type of the first arg, hence (event, self)
@@ -260,10 +297,7 @@ def _(event, hub):
 def _(event, board):
     board._validate_event_originator(event)
 
-    if event.name in (column.name for column in board._columns):
-        raise ValueError("Column name {} is not distinct from existing column names".format(event.name))
-
-    column = Column(event, hub=board._hub)
+    column = Column(event, board, hub=board._hub)
 
     board._columns.append(column)
     board._increment_version()
@@ -273,13 +307,9 @@ def _(event, board):
 @_when.register(Board.NewColumnInserted)
 def _(event, board):
     board._validate_event_originator(event)
-
-    if event.name in (column.name for column in board._columns):
-        raise ValueError("Column name {} is not distinct from existing column names".format(event.name))
-
     index = board._column_index_with_id(event.succeeding_column_id)
 
-    column = Column(event, hub=board._hub)
+    column = Column(event, board, hub=board._hub)
 
     board._columns.insert(index, column)
     board._increment_version()
@@ -293,7 +323,7 @@ def _(event, board):
     index = board._column_index_with_id(event.column_id)
     column = board._columns[index]
     if column.number_of_work_items() > 0:
-        raise RuntimeError("Cannot remove non-empty {}".repr(column))
+        raise RuntimeError("Cannot remove non-empty {!r}".format(column))
     column._discarded = True
     del board._columns[index]
     board._increment_version()
@@ -314,33 +344,16 @@ def _(event, board):
 
 
 # ======================================================================================================================
-# Factories - the aggregate root factory
-#
-
-def start_project(name, description, hub=None):
-    board_id = uuid.uuid4().hex
-
-    event = Board.Created(originator_id=board_id,
-                          originator_version=0,
-                          name=name,
-                          description=description)
-
-    board = _when(event, hub)
-    board._publish(event)
-    return board
-
-# ======================================================================================================================
 # Repository - for retrieving existing aggregates
 #
 
-def _apply_event(entity, event):
-    return _when(event, entity)
 
 class Repository:
     __metaclass__ = ABCMeta
 
-    def __init__(self, hub):
-        self._hub = hub
+    def __init__(self, **kwargs):
+        # noinspection PyArgumentList
+        super().__init__(**kwargs)
 
     def all_boards(self):
         return self.boards_where(lambda board: True)
@@ -355,7 +368,11 @@ class Repository:
     def boards_where(self, predicate):
         raise NotImplemented
 
-    def _apply_events(self, event_stream):
-        """Current State is the left fold over previous behaviours - Greg Young"""
+    def board_with_id(self, id):
+        try:
+            return exactly_one(self.boards_where(lambda board: board.id == id))
+        except ValueError as e:
+            raise ValueError("No Board with id {}".format(id)) from e
 
-        return reduce(_mutate, event_stream, self._hub)
+
+

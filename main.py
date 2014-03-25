@@ -20,29 +20,20 @@ def main():
 
     board.add_new_column("To do", 20)
     doing_column = board.add_new_column("Doing", 3)
-    board.add_new_column("Done", 30)
+    done_column = board.add_new_column("Done", None)
 
     todo_column = board.column_with_name("To do")
+    impeded_column = board.insert_new_column_before(todo_column, "Impeded", 7)
 
-    print(repr(doing_column))
 
     board.remove_column(doing_column)
 
     print(repr(doing_column))
-    #print(doing_column.id)
-
-    #board.discard()
-
-    #print(todo_column.name)
-
-    #print(board.id)
 
     board_repo = BoardRepository(es, hub)
     board_2 = board_repo.board_with_id(board_id)
 
-    board_3 = board_repo.board_with_id(board_id)
 
-    assert board_2 is board_3
 
     pass
 
