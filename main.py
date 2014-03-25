@@ -32,8 +32,6 @@ def main():
 
     print(repr(doing_column))
 
-    board_repo = BoardRepository(es, hub)
-    board_2 = board_repo.board_with_id(board_id)
 
     work_item_1 = register_new_work_item(name="Feature 1",
                                          due_date=date(2014, 8, 13),
@@ -51,7 +49,16 @@ def main():
                                          hub=hub)
 
     work_item_repo = WorkItemRepository(es, hub)
-    work_items_2 = list(work_item_repo.works_items_with_name("Feature 2"))
+
+    board.schedule_work_item(work_item_3)
+    board.schedule_work_item(work_item_1)
+    board.schedule_work_item(work_item_2)
+
+    board.abandon_work_item(work_item_2)
+
+    board_repo = BoardRepository(es, hub)
+    board_2 = board_repo.board_with_id(board_id)
+
     pass
 
 if __name__ == '__main__':

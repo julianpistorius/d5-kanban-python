@@ -42,6 +42,10 @@ class Entity:
             raise RuntimeError("Event originator version mismatch: {} != {}".format(event.originator_version,
                                                                                     self.version))
 
+    @property
+    def discarded(self):
+        return self._discarded
+
     def _check_not_discarded(self):
         if self._discarded:
             raise RuntimeError("Attempt to use {}".format(repr(self)))

@@ -8,6 +8,7 @@ from utility.utilities import exactly_one
 from kanban.domain.model.domain_events import DomainEvent
 from kanban.domain.model.entity import Entity
 
+
 # ======================================================================================================================
 # Aggregate root entity
 #
@@ -27,6 +28,12 @@ class Board(Entity):
         pass
 
     class ColumnRemoved(DomainEvent):
+        pass
+
+    class ScheduleWorkItem(DomainEvent):
+        pass
+
+    class AbandonWorkItem(DomainEvent):
         pass
 
     def __init__(self, event, hub=None):
@@ -137,16 +144,22 @@ class Board(Entity):
 
     def remove_column_by_name(self, name):
         self._check_not_discarded()
-        column_id = self._column_id_with_name(name)
+        column = self.column_with_name(name)
+        self._check_column_removable(column)
 
         event = Board.ColumnRemoved(originator_id=self.id,
                                     originator_version=self.version,
-                                    column_id=column_id)
+                                    column_id=column.id)
         self._apply(event)
         self._publish(event)
 
+    def _check_column_removable(self, column):
+        if column.number_of_work_items() > 0:
+            raise RuntimeError("Cannot remove non-empty {!r}".format(column))
+
     def remove_column(self, column):
         self._check_not_discarded()
+        self._check_column_removable(column)
 
         event = Board.ColumnRemoved(originator_id=self.id,
                                     originator_version=self.version,
@@ -170,14 +183,68 @@ class Board(Entity):
                 return column
         raise ValueError("No column with name '{}'".format(name))
 
-    def _column_id_with_name(self, name):
-        return self.column_with_name(name).id
-
     def _column_index_with_id(self, id):
         for index, column in enumerate(self._columns):
             if column.id == id:
                 return index
         raise ValueError("No column with id '{}'".format(id))
+
+    def schedule_work_item(self, work_item):
+        """Enqueue a work item in the first column"""
+        self._check_not_discarded()
+
+        if work_item.discarded:
+            raise RuntimeError("Cannot schedule {!r}".format(work_item))
+
+        if len(self._columns) < 1:
+            raise RuntimeError("Cannot schedule a {!r} to board with no columns: {!r}".format(work_item, self))
+
+        if work_item in self:
+            raise RuntimeError("{!r} is already scheduled".format(work_item))
+
+        if not self._columns[0].check_can_accept_work_item():
+            raise RuntimeError("Cannot schedule a work item to {}, "
+                               "at or exceeding its work-in-progress limit".format(self._columns[0]))
+
+        event = Board.ScheduleWorkItem(originator_id=self.id,
+                                       originator_version=self.version,
+                                       work_item_id=work_item.id)
+        self._apply(event)
+        self._publish(event)
+
+    def __contains__(self, work_item):
+        for column in self._columns:
+            if work_item in column:
+                return True
+        return False
+
+    def abandon_work_item(self, work_item):
+        """Abandon a work item"""
+        self._check_not_discarded()
+
+        if work_item.discarded:
+            raise RuntimeError("Cannot abandon {!r}".format(work_item))
+
+        column_index, priority = self._find_work_item_by_id(work_item.id)
+
+        event = Board.AbandonWorkItem(originator_id=self.id,
+                                      originator_version=self.version,
+                                      work_item_id=work_item.id,
+                                      column_index=column_index,
+                                      priority=priority)
+        self._apply(event)
+        self._publish(event)
+
+    def _find_work_item_by_id(self, work_item_id):
+        for column_index, column in enumerate(self._columns):
+            try:
+                priority = column._work_item_ids.index(work_item_id)
+                return column_index, priority
+            except ValueError:
+                pass
+        raise ValueError("Work Item with id={!r} is not on {!r}".format(work_item_id, self))
+
+
 
     def _apply(self, event):
         mutate(self, event)
@@ -195,14 +262,18 @@ class Column(Entity):
         # Validation not necessary here - never called directly
         self._board = board
         self._name = event.column_name
-        self._work_item_ids = []
         self._wip_limit = event.wip_limit
+        self._work_item_ids = []
 
     def __repr__(self):
-        return "{d}Column(id={c._id}, name={c._name!r}, wip_limit={c._wip_limit}, work_items=[0..{n}])".format(
-            d="*Discarded* " if self._discarded else "",
-            c=self,
-            n=len(self._work_item_ids))
+        return ("{d}Column(id={c._id}, board_id={c._board.id!r} name={c._name!r}, "
+                "wip_limit={c._wip_limit}, work_items=[0..{n}])".format(
+                d="*Discarded* " if self._discarded else "",
+                c=self,
+                n=len(self._work_item_ids)))
+
+    def __contains__(self, work_item):
+        return work_item.id in self._work_item_ids
 
     @property
     def name(self):
@@ -238,12 +309,19 @@ class Column(Entity):
         self._apply(event)
         self._publish(event)
 
+    @property
     def number_of_work_items(self):
         self._check_not_discarded()
         return len(self._work_item_ids)
-    
+
+    def check_can_accept_work_item(self):
+        return (self.wip_limit is not None) and (self.number_of_work_items < self.wip_limit)
+
     def _apply(self, event):
         mutate(self, event)
+
+    def work_item_ids(self):
+        return iter(self._work_item_ids)
 
 
 # ======================================================================================================================
@@ -322,8 +400,6 @@ def _(event, board):
 
     index = board._column_index_with_id(event.column_id)
     column = board._columns[index]
-    if column.number_of_work_items() > 0:
-        raise RuntimeError("Cannot remove non-empty {!r}".format(column))
     column._discarded = True
     del board._columns[index]
     board._increment_version()
@@ -343,10 +419,31 @@ def _(event, board):
     return board
 
 
+@_when.register(Board.ScheduleWorkItem)
+def _(event, board):
+    board._validate_event_originator(event)
+    column = board._columns[0]
+    column._work_item_ids.append(event.work_item_id)
+    column._increment_version()
+    board._increment_version()
+    return board
+
+
+@_when.register(Board.AbandonWorkItem)
+def _(event, board):
+    board._validate_event_originator(event)
+    column = board._columns[event.column_index]
+    designated_work_item_id = column._work_item_ids[event.priority]
+    assert designated_work_item_id == event.work_item_id
+    del column._work_item_ids[event.priority]
+    column._increment_version()
+    board._increment_version()
+    return board
+
+
 # ======================================================================================================================
 # Repository - for retrieving existing aggregates
 #
-
 
 class Repository:
     __metaclass__ = ABCMeta

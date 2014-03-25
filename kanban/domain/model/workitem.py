@@ -3,6 +3,7 @@
 # Aggregate root entity
 #
 from abc import ABCMeta, abstractmethod
+import reprlib
 import uuid
 from singledispatch import singledispatch
 from kanban.domain.model.entity import Entity
@@ -24,6 +25,14 @@ class WorkItem(Entity):
         self._name = event.name
         self._due_date=event.due_date
         self._content = event.content
+
+    def __repr__(self):
+        return "{d}WorkItem(id={id!r}, name={name!r}, due_date={date!r}, content={content})".format(
+            d="*Discarded* " if self._discarded else "",
+            id=self.id,
+            name=self._name,
+            date=self._due_date.isoformat(),
+            content=reprlib.repr(self._content))
 
     @property
     def name(self):
