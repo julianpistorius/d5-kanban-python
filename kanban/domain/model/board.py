@@ -510,7 +510,6 @@ def _(event, board):
     return board
 
 
-
 # ======================================================================================================================
 # Repository - for retrieving existing aggregates
 #
@@ -522,24 +521,24 @@ class Repository:
         # noinspection PyArgumentList
         super().__init__(**kwargs)
 
-    def all_boards(self):
-        return self.boards_where(lambda board: True)
+    def all_boards(self, board_ids=None):
+        return self.boards_where(lambda board: True, board_ids)
 
-    def board_with_name(self, name):
+    def board_with_name(self, name, board_ids=None):
         try:
-            return exactly_one(self.boards_where(lambda board: board.name == name))
+            return exactly_one(self.boards_where(lambda board: board.name == name, board_ids))
         except ValueError as e:
             raise ValueError("No Board with name {}".format(name)) from e
 
-    @abstractmethod
-    def boards_where(self, predicate):
-        raise NotImplemented
-
-    def board_with_id(self, id):
+    def board_with_id(self, board_id):
         try:
-            return exactly_one(self.boards_where(lambda board: board.id == id))
+            return exactly_one(self.all_boards(board_ids=(board_id,)))
         except ValueError as e:
-            raise ValueError("No Board with id {}".format(id)) from e
+            raise ValueError("No Board with id {}".format(board_id)) from e
+
+    @abstractmethod
+    def boards_where(self, predicate, board_ids=None):
+        raise NotImplemented
 
 
 

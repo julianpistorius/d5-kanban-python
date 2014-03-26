@@ -1,4 +1,6 @@
-class MessageHub:
+from kanban.domain.model.domain_events import AbstractMessageHub
+
+class MessageHub(AbstractMessageHub):
 
     def __init__(self):
         self._event_handlers = {}

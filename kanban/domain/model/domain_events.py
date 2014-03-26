@@ -1,3 +1,4 @@
+from abc import abstractmethod, ABCMeta
 from utility.utilities import utc_now
 
 _now = object()
@@ -21,3 +22,19 @@ class DomainEvent:
     def __repr__(self):
         return self.__class__.__qualname__ + "(" + ', '.join("{0}={1!r}".format(*item) for item in self.__dict__.items()) + ')'
 
+
+class AbstractMessageHub:
+
+    __metaclass__ = ABCMeta
+
+    @abstractmethod
+    def subscribe(self, event_predicate, subscriber):
+        raise NotImplementedError
+
+    @abstractmethod
+    def unsubscribe(self, event_predicate, subscriber):
+        raise NotImplementedError
+
+    @abstractmethod
+    def publish(self, event):
+        raise NotImplementedError

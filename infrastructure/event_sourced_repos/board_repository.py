@@ -1,8 +1,8 @@
-from infrastructure.event_sourced_repos.stored_event_repository import StoredEventRepository
+from infrastructure.event_processing import EventPlayer, extant_entity_ids
 from kanban.domain.model import board
 
 
-class BoardRepository(board.Repository, StoredEventRepository):
+class BoardRepository(board.Repository, EventPlayer):
 
     def __init__(self, event_store, hub, **kwargs):
         """
@@ -11,15 +11,17 @@ class BoardRepository(board.Repository, StoredEventRepository):
             hub:
         """
         super().__init__(event_store=event_store,
-                         entity_class_name='Board',
                          mutator=board.mutate,
                          stream_primer=hub,
                          **kwargs)
 
-    def all_boards(self):
-        board_ids = self._extant_entity_ids()
-        return self._reconstitute_entities(board_ids)
+    def all_boards(self, board_ids=None):
+        if board_ids is None:
+            board_ids = extant_entity_ids(self._event_store, entity_class_name='Board')
+        return self._replay_events(board_ids)
 
-    def boards_where(self, predicate):
-        return filter(predicate, self.all_boards())
-
+    def boards_where(self, predicate, board_ids=None):
+        if board_ids is None:
+            board_ids = extant_entity_ids(self._event_store, entity_class_name='Board')
+        boards = self._replay_events(board_ids)
+        return filter(predicate, boards)

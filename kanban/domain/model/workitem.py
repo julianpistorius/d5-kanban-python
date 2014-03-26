@@ -152,18 +152,19 @@ class Repository:
         # noinspection PyArgumentList
         super().__init__(**kwargs)
 
-    def all_work_items(self):
-        return self.work_items_where(lambda work_item: True)
+    def all_work_items(self, work_item_ids=None):
+        return self.work_items_where(lambda work_item: True, work_item_ids)
 
-    def works_items_with_name(self, name):
-        return self.work_items_where(lambda work_item: work_item.name == name)
+    def works_items_with_name(self, name, work_item_ids=None):
+        return self.work_items_where(lambda work_item: work_item.name == name,
+                                     work_item_ids)
+
+    def work_item_with_id(self, work_item_id):
+        try:
+            return exactly_one(self.all_work_items((work_item_id,)))
+        except ValueError as e:
+            raise ValueError("No WorkItem with id {}".format(work_item_id)) from e
 
     @abstractmethod
-    def work_items_where(self, predicate):
+    def work_items_where(self, predicate, work_item_ids=None):
         raise NotImplemented
-
-    def work_items_with_id(self, id):
-        try:
-            return exactly_one(self.work_items_where(lambda board: board.id == id))
-        except ValueError as e:
-            raise ValueError("No WorkItem with id {}".format(id)) from e

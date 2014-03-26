@@ -1,8 +1,8 @@
-from infrastructure.event_sourced_repos.stored_event_repository import StoredEventRepository
+from infrastructure.event_processing import EventPlayer, extant_entity_ids
 from kanban.domain.model import workitem
 
 
-class WorkItemRepository(workitem.Repository, StoredEventRepository):
+class WorkItemRepository(workitem.Repository, EventPlayer):
 
     def __init__(self, event_store, hub, **kwargs):
         """
@@ -11,23 +11,19 @@ class WorkItemRepository(workitem.Repository, StoredEventRepository):
             hub: MessageHub
         """
         super().__init__(event_store=event_store,
-                         entity_class_name='WorkItem',
                          mutator=workitem.mutate,
                          stream_primer=hub,
                          **kwargs)
 
-    def all_work_items(self):
-        work_item_ids = self._extant_entity_ids()
-        return self._reconstitute_entities(work_item_ids)
+    all_extant = object()
 
-    def work_items_where(self, predicate):
-        return filter(predicate, self.all_work_items())
+    def all_work_items(self, work_item_ids=None):
+        if work_item_ids is None:
+            work_item_ids = extant_entity_ids(self._event_store, entity_class_name='WorkItem')
+        return self._replay_events(work_item_ids)
 
-
-
-
-
-
-
-
-
+    def work_items_where(self, predicate, work_item_ids=None):
+        if work_item_ids is None:
+            work_item_ids = extant_entity_ids(self._event_store, entity_class_name='WorkItem')
+        work_items = self._replay_events(work_item_ids)
+        return filter(predicate, work_items)

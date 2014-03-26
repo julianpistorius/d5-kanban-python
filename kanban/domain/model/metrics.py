@@ -51,34 +51,34 @@ def mutate(obj, event):
     return _when(event, obj)
 
 @singledispatch
-def _when(event, proj):
-    return proj
+def _when(event, projection):
+    return projection
 
 
 @_when.register(Board.WorkItemScheduled)
-def _(event, proj):
-    if event.work_item_id in proj._work_item_start_times:
+def _(event, projection):
+    if event.work_item_id in projection._work_item_start_times:
         raise RuntimeError("Inconsistent event stream: Duplicate WorkItem scheduled "
                            "with id {}".format(event.work_item_id))
-    proj._work_item_start_times[event.work_item_id] = event.timestamp
-    return proj
+    projection._work_item_start_times[event.work_item_id] = event.timestamp
+    return projection
 
 
 @_when.register(Board.WorkItemRetired)
-def _(event, proj):
-    if event.work_item_id not in proj._work_item_start_times:
+def _(event, projection):
+    if event.work_item_id not in projection._work_item_start_times:
         raise RuntimeError("Inconsistent event stream: Retiring non-existent WorkItem "
                            "with id {}".format(event.work_item_id))
-    lead_time = event.timestamp - proj._work_item_start_times[event.work_item_id]
-    proj._lead_times[event.work_item_id] = lead_time
-    del proj._work_item_start_times[event.work_item_id]
-    return proj
+    lead_time = event.timestamp - projection._work_item_start_times[event.work_item_id]
+    projection._lead_times[event.work_item_id] = lead_time
+    del projection._work_item_start_times[event.work_item_id]
+    return projection
 
 
 @_when.register(Board.WorkItemAbandoned)
-def _(event, proj):
-    if event.work_item_id not in proj._work_item_start_times:
+def _(event, projection):
+    if event.work_item_id not in projection._work_item_start_times:
         raise RuntimeError("Inconsistent event stream: Abandoning non-existent {} "
                            "for id {}".format(event.work_item_id))
-    del proj._work_item_start_times[event.work_item_id]
-    return proj
+    del projection._work_item_start_times[event.work_item_id]
+    return projection
