@@ -3,6 +3,7 @@ from abc import ABCMeta, abstractmethod
 import uuid
 
 from singledispatch import singledispatch
+from kanban.domain.exceptions import ConstraintError
 
 from utility.utilities import exactly_one
 from kanban.domain.model.domain_events import DomainEvent
@@ -14,6 +15,8 @@ from kanban.domain.model.entity import Entity
 #
 
 class Board(Entity):
+    """A kanban board which can track the progress of work items through a step-wise process.
+    """
 
     class Created(Entity.Created):
         pass
@@ -43,7 +46,9 @@ class Board(Entity):
         pass
 
     def __init__(self, event, hub=None):
-        """DO NOT CALL DIRECTLY.
+        """Initialize a Board.
+
+        Do NOT call directly. Use the start_project() factory method.
         """
         super().__init__(event.originator_id, event.originator_version, hub)
         # Validation not necessary here - never called directly
@@ -59,6 +64,7 @@ class Board(Entity):
 
     @property
     def name(self):
+        """The name of this board."""
         self._check_not_discarded()
         return self._name
 
@@ -81,6 +87,7 @@ class Board(Entity):
 
     @property
     def description(self):
+        """A description of this board."""
         self._check_not_discarded()
         return self._description
 
@@ -102,6 +109,10 @@ class Board(Entity):
         self._publish(event)
 
     def discard(self):
+        """Discard this board.
+
+        After a call to this method, the board can no longer be used.
+        """
         self._check_not_discarded()
         event = Board.Discarded(originator_id=self.id,
                                 originator_version=self.version)
@@ -124,6 +135,19 @@ class Board(Entity):
         return wip_limit
 
     def add_new_column(self, name, wip_limit):
+        """Add a new column at the right side of the board representing a work process state.
+
+        Args:
+            name: The column name, which must be distinct from existing names on this board.
+            wip_limit: The maximum number work items permitted in this column, or None for unlimited.
+
+        Returns:
+            The new column.
+
+        Raises:
+            ValueError: If the column name is not valid.
+            ValueError: If the wip_limit is not valid.
+        """
         self._check_not_discarded()
         event = Board.NewColumnAdded(originator_id=self.id,
                                      originator_version=self.version,
@@ -135,7 +159,28 @@ class Board(Entity):
         self._publish(event)
         return self.column_with_name(name)
 
+    def _validate_column(self, column):
+        column._check_not_discarded()
+        if column not in self._columns:
+            raise ValueError("{!r} is not part of {!r}".format(column, self))
+        return column
+
     def insert_new_column_before(self, succeeding_column, name, wip_limit):
+        """Insert a new column to the left of an existing column.
+
+        Args:
+            succeeding_column: An existing column to the right of which the new column will be inserted.
+            name: The column name, which must be distinct from existing names on this board.
+            wip_limit: The maximum number work items permitted in this column, or None for unlimited.
+
+        Returns:
+            The new column.
+
+        Raises:
+            ValueError: If the succeeding column is not valid.
+            ValueError: If the new column name is not valid.
+            ValueError: If the wip_limit is not valid.
+        """
         self._check_not_discarded()
         event = Board.NewColumnInserted(originator_id=self.id,
                                         originator_version=self.version,
@@ -143,33 +188,51 @@ class Board(Entity):
                                         column_version=0,
                                         column_name=self._validate_column_name(name),
                                         wip_limit=Board._validate_column_wip_limit(wip_limit),
-                                        succeeding_column_id=succeeding_column.id)
+                                        succeeding_column_id=self._validate_column(succeeding_column).id)
         self._apply(event)
         self._publish(event)
         return self.column_with_name(name)
 
+    def _validate_column_removable(self, column):
+        column = self._validate_column(column)
+        if column.number_of_work_items() > 0:
+            raise ConstraintError("Cannot remove non-empty {!r}".format(column))
+        return column
+
     def remove_column_by_name(self, name):
+        """Remove a named column.
+
+        Args:
+            name: The name of the column to remove.
+
+        Raises:
+            ValueError: If there is no column of that name.
+            ConstraintError: If the column contains work items.
+        """
         self._check_not_discarded()
         column = self.column_with_name(name)
-        self._check_column_removable(column)
 
         event = Board.ColumnRemoved(originator_id=self.id,
                                     originator_version=self.version,
-                                    column_id=column.id)
+                                    column_id=self._validate_column_removable(column).id)
         self._apply(event)
         self._publish(event)
 
-    def _check_column_removable(self, column):
-        if column.number_of_work_items() > 0:
-            raise RuntimeError("Cannot remove non-empty {!r}".format(column))
-
     def remove_column(self, column):
+        """Remove a column.
+
+        Args:
+            column: The column to remove.
+
+        Raises:
+            ValueError: If the
+            ConstraintError: If the column contains work items.
+        """
         self._check_not_discarded()
-        self._check_column_removable(column)
 
         event = Board.ColumnRemoved(originator_id=self.id,
                                     originator_version=self.version,
-                                    column_id=column.id)
+                                    column_id=self._validate_column_removable(column).id)
         self._apply(event)
         self._publish(event)
 
@@ -403,7 +466,7 @@ def mutate(obj, event):
 @singledispatch
 def _when(event, entity):
     """Modify an entity (usually an aggregate root) by replaying an event."""
-    raise NotImplemented("No _when() implementation for {!r}".format(event))
+    raise NotImplementedError("No _when() implementation for {!r}".format(event))
 
 
 @_when.register(Entity.AttributeChanged)
@@ -538,7 +601,7 @@ class Repository:
 
     @abstractmethod
     def boards_where(self, predicate, board_ids=None):
-        raise NotImplemented
+        raise NotImplementedError
 
 
 

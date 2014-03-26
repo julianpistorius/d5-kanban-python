@@ -73,22 +73,22 @@ def main():
 
     board.retire_work_item(work_item_3)
 
-    overdue_work_items = list(locate_overdue_work_items(board, work_item_repo))
+    overdue_work_items = locate_overdue_work_items(board, work_item_repo)
 
-    pp(overdue_work_items)
+    pp(list(overdue_work_items))
 
     board_repo = BoardRepository(es, hub)
     board_2 = board_repo.board_with_id(board_id)
 
     lead_time_projection = LeadTimeProjection(board_id, es, hub)
-    print(lead_time_projection.lead_time)
+    print(lead_time_projection.average_lead_time)
 
     board.advance_work_item(work_item_1)
     board.advance_work_item(work_item_1)
     board.retire_work_item(work_item_1)
-    print(lead_time_projection.lead_time)
+    print(lead_time_projection.average_lead_time)
 
-
+    lead_time_projection.close()
 
     pass
 

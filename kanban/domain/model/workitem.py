@@ -115,7 +115,7 @@ def mutate(obj, event):
 @singledispatch
 def _when(event, entity):
     """Modify an entity (usually an aggregate root) by replaying an event."""
-    raise NotImplemented("No _when() implementation for {!r}".format(event))
+    raise NotImplementedError("No _when() implementation for {!r}".format(event))
 
 
 @_when.register(Entity.AttributeChanged)
@@ -167,4 +167,4 @@ class Repository:
 
     @abstractmethod
     def work_items_where(self, predicate, work_item_ids=None):
-        raise NotImplemented
+        raise NotImplementedError

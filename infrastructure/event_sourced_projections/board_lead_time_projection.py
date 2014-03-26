@@ -1,9 +1,9 @@
 from infrastructure.event_processing import EventPlayer
-from kanban.domain.model import metrics
+from kanban.domain.model import lead_time
 from utility.utilities import consume
 
 
-class LeadTimeProjection(metrics.LeadTimeProjection, EventPlayer):
+class LeadTimeProjection(lead_time.LeadTimeProjection, EventPlayer):
     """
 
     """
@@ -12,8 +12,10 @@ class LeadTimeProjection(metrics.LeadTimeProjection, EventPlayer):
         super().__init__(board_id=board_id,
                          hub=hub,
                          event_store=event_store,
-                         mutator=metrics.mutate,
+                         mutator=lead_time.mutate,
                          stream_primer=self,
                          **kwargs)
 
+    def _load_events(self):
+        """Initialize the projection with historical events."""
         consume(self._replay_events([self._board_id]))

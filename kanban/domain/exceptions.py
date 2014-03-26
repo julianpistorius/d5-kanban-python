@@ -1,0 +1,3 @@
+class ConstraintError(RuntimeError):
+    pass
+

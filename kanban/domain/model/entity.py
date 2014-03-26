@@ -23,11 +23,13 @@ class Entity:
 
     @property
     def id(self):
+        """A string unique identifier for the entity."""
         self._check_not_discarded()
         return self._id
 
     @property
     def version(self):
+        """An integer version for the entity."""
         self._check_not_discarded()
         return self._version
 
@@ -44,9 +46,16 @@ class Entity:
 
     @property
     def discarded(self):
+        """True if this entity is marked as discarded, otherwise False."""
         return self._discarded
 
     def _check_not_discarded(self):
         if self._discarded:
-            raise RuntimeError("Attempt to use {}".format(repr(self)))
+            raise DiscardedEntityError("Attempt to use {}".format(repr(self)))
+
+
+class DiscardedEntityError(ReferenceError):
+    pass
+
+
 

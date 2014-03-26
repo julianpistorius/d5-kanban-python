@@ -1,4 +1,6 @@
-from abc import ABCMeta
+"""Projections for tracking project management metrics such as lead time."""
+
+from abc import ABCMeta, abstractmethod
 import datetime
 
 from singledispatch import singledispatch
@@ -7,7 +9,8 @@ from kanban.domain.model.board import Board
 
 
 class LeadTimeProjection:
-
+    """A projection which tracks the lead time for work items with respect to a specified Board.
+    """
     __metaclass__ = ABCMeta
 
     def __init__(self, board_id, hub, **kwargs):
@@ -18,29 +21,44 @@ class LeadTimeProjection:
         self._work_item_start_times = {}
         self._lead_times = {}
 
-        self._hub.subscribe(self.event_filter, self.handler)
+        self._load_events()
+        self._hub.subscribe(self._event_filter, self._handler)
 
     @property
     def board_id(self):
+        """The id of the Board this projection is tracking."""
         return self._board_id
 
     @property
-    def lead_time(self):
-        "A timedelta object representing the lead time for work items"
+    def average_lead_time(self):
+        """The average lead time."""
         mean_lead_time = sum(self._lead_times.values()) / len(self._lead_times)
         return datetime.timedelta(seconds=mean_lead_time)
 
-    def event_filter(self, event):
+    def lead_times(self):
+        """A dynamic view onto collection of lead times."""
+        return self._lead_times.values()
+
+    def close(self):
+        """No longer keep this projection up-to-date."""
+        self._hub.unsubscribe(self._event_filter, self._handler)
+
+    @abstractmethod
+    def _load_events(self):
+        """Initalize the projection with historical events."""
+        raise NotImplementedError
+
+    def _event_filter(self, event):
+        """A predicate to identify events in which this projection is interested."""
         return (event.originator_id == self.board_id
                 and isinstance(event, (Board.WorkItemScheduled,
                                        Board.WorkItemAbandoned,
                                        Board.WorkItemRetired)))
 
-    def handler(self, event):
+    def _handler(self, event):
+        """The event handler which when triggered updates the projection state."""
         mutate(self, event)
 
-    def close(self):
-        self._hub.unsubscribe(self.event_filter, self.handler)
 
 
 # ======================================================================================================================
