@@ -7,7 +7,7 @@ from kanban.domain.exceptions import ConstraintError
 
 from utility.utilities import exactly_one
 from kanban.domain.model.domain_events import DomainEvent
-from kanban.domain.model.entity import Entity
+from kanban.domain.model.entity import Entity, DiscardedEntityError
 
 
 # ======================================================================================================================
@@ -225,7 +225,7 @@ class Board(Entity):
             column: The column to remove.
 
         Raises:
-            ValueError: If the
+            DiscardedEntityError: This this board or the column has been discarded.
             ConstraintError: If the column contains work items.
         """
         self._check_not_discarded()
@@ -237,15 +237,31 @@ class Board(Entity):
         self._publish(event)
 
     def column_names(self):
+        """Obtain an iterator over the column names.
+        """
         self._check_not_discarded()
         for column in self._columns:
             yield column.name
 
     def columns(self):
+        """Obtain an iterator over the columns.
+        """
         self._check_not_discarded()
         return iter(self._columns)
 
     def column_with_name(self, name):
+        """Obtain a column by name.
+
+        Args:
+            name: The name of the column to return.
+
+        Returns:
+            The column with the specified name.
+
+        Raises:
+            DiscardedEntityError: If this board has been discarded.
+            ValueError: If there is no column with the specified name.
+        """
         self._check_not_discarded()
         for column in self._columns:
             if column.name == name:
@@ -259,25 +275,35 @@ class Board(Entity):
         raise ValueError("No column with id '{}'".format(id))
 
     def schedule_work_item(self, work_item):
-        """Enqueue a work item in the first column"""
+        """Enqueue a work item in the first column.
+
+        Args:
+            work_item: The WorkItem to be scheduled on this board.
+
+        Raises:
+            DiscardedEntityError: If this board or the work item has been discarded.
+            ConstraintError: If this board has no columns.
+            ConstraintError: If this work item has already been scheduled on this board.
+            WorkLimitError: If the first column is at or above its work-in-progress limit.
+        """
         self._check_not_discarded()
 
         if work_item.discarded:
-            raise RuntimeError("Cannot schedule {!r}".format(work_item))
+            raise DiscardedEntityError("Cannot schedule {!r}".format(work_item))
 
         if len(self._columns) < 1:
-            raise RuntimeError("Cannot schedule a {!r} to board with no columns: {!r}".format(work_item, self))
+            raise ConstraintError("Cannot schedule a {!r} to board with no columns: {!r}".format(work_item, self))
 
         if work_item in self:
-            raise RuntimeError("{!r} is already scheduled".format(work_item))
+            raise ConstraintError("{!r} is already scheduled".format(work_item))
 
         if not self._columns[0].can_accept_work_item():
-            raise RuntimeError("Cannot schedule a work item to {}, "
+            raise WorkLimitError("Cannot schedule a work item to {}, "
                                "at or exceeding its work-in-progress limit".format(self._columns[0]))
 
         event = Board.WorkItemScheduled(originator_id=self.id,
-                                       originator_version=self.version,
-                                       work_item_id=work_item.id)
+                                        originator_version=self.version,
+                                        work_item_id=work_item.id)
         self._apply(event)
         self._publish(event)
 
@@ -288,11 +314,19 @@ class Board(Entity):
         return False
 
     def abandon_work_item(self, work_item):
-        """Abandon a work item"""
+        """Abandon a work item.
+
+        Args:
+            work_item: The work item be to be abandoned.
+
+        Raises:
+            DiscardedEntityError: If this board or the work item has been discarded.
+            ValueError: If the work item is not present on this board.
+        """
         self._check_not_discarded()
 
         if work_item.discarded:
-            raise RuntimeError("Cannot abandon {!r}".format(work_item))
+            raise DiscardedEntityError("Cannot abandon {!r}".format(work_item))
 
         column_index, priority = self._find_work_item_by_id(work_item.id)
 
@@ -314,21 +348,29 @@ class Board(Entity):
         raise ValueError("Work Item with id={!r} is not on {!r}".format(work_item_id, self))
 
     def advance_work_item(self, work_item):
-        """Advance a work item to the next column"""
+        """Advance a work item to the next column.
+
+        Args:
+            work_item: The work item be to advanced to the next column.
+
+        Raises:
+            ConstraintError: If the work_item is in the last column of the board.
+            WorkLimitError: If the next column is at or has exceeded its work-in-progress limit.
+        """
         self._check_not_discarded()
 
         if work_item.discarded:
-            raise RuntimeError("Cannot advance {!r}".format(work_item))
+            raise DiscardedEntityError("Cannot advance {!r}".format(work_item))
 
         column_index, priority = self._find_work_item_by_id(work_item.id)
 
         next_column_index = column_index + 1
         if next_column_index >= len(self._columns):
-            raise RuntimeError("Cannot advance {!r} from last column of {!r}".format(work_item, self))
+            raise ConstraintError("Cannot advance {!r} from last column of {!r}".format(work_item, self))
 
         if not self._columns[next_column_index].can_accept_work_item():
-            raise RuntimeError("Cannot schedule a work item to {}, "
-                               "at or exceeding its work-in-progress limit".format(self._columns[next_column_index]))
+            raise WorkLimitError("Cannot schedule a work item to {}, "
+                                 "at or exceeding its work-in-progress limit".format(self._columns[next_column_index]))
 
         event = Board.WorkItemAdvanced(originator_id=self.id,
                                       originator_version=self.version,
@@ -339,19 +381,24 @@ class Board(Entity):
         self._publish(event)
 
     def retire_work_item(self, work_item):
-        """Retire a work item, removing it from the final column"""
+        """Retire a work item, removing it from the final column.
+
+        Raises:
+            DiscardedEntityError: If this board or the supplied work item have been discarded.
+            ConstraintError: If this board has no columns.
+            ConstraintError: If the specified work item is not in the last column.
+        """
         self._check_not_discarded()
 
         if work_item.discarded:
-            raise RuntimeError("Cannot retire {!r}".format(work_item))
+            raise DiscardedEntityError("Cannot retire {!r}".format(work_item))
 
         try:
             priority = self._columns[-1]._work_item_ids.index(work_item.id)
         except IndexError:
-            raise RuntimeError("Cannot retire a {!r} from a board with no columns".format(work_item))
+            raise ConstraintError("Cannot retire a {!r} from a board with no columns".format(work_item))
         except ValueError:
-            raise RuntimeError("{!r} not available for retiring from last column of {!r}".format(work_item, self))
-
+            raise ConstraintError("{!r} not available for retiring from last column of {!r}".format(work_item, self))
 
         event = Board.WorkItemRetired(originator_id=self.id,
                                       originator_version=self.version,
@@ -387,10 +434,20 @@ class Column(Entity):
                 n=len(self._work_item_ids)))
 
     def __contains__(self, work_item):
+        """Determine whether a particular work item is present in this column.
+        """
+        self._check_not_discarded()
         return work_item.id in self._work_item_ids
 
     @property
     def name(self):
+        """The current name.
+
+        Raises:
+            DiscardedEntityError: When setting or getting, if this column has been discarded.
+            ValueError: When setting, if the column name is set to an empty string.
+            ValueError: When setting, if the column name is not distinct for the board.
+        """
         self._check_not_discarded()
         return self._name
 
@@ -408,6 +465,15 @@ class Column(Entity):
 
     @property
     def wip_limit(self):
+        """The current work-in-progress limit.
+
+        The number of work items in this column must be lower than this limit before new work items
+        can be scheduled to, or advanced to, this column. An unlimited column has a wip_limit of None.
+
+        Raises:
+            DiscardedEntityError: When setting or getting, if this column has been discarded.
+            ValueError: When setting, if the value is neither None nor a non-negative integer.
+        """
         self._check_not_discarded()
         return self._wip_limit
 
@@ -425,17 +491,42 @@ class Column(Entity):
 
     @property
     def number_of_work_items(self):
+        """The amount of work in progress (read-only).
+
+        The number of work items currently in this column.
+
+        Raises:
+            DiscardedEntityError: When getting, if this column has been discarded.
+        """
         self._check_not_discarded()
         return len(self._work_item_ids)
 
     def can_accept_work_item(self):
+        """Determine whether this column can accept an additional work item.
+
+        Returns:
+            True if the column can accept an additional work item, otherwise False.
+
+        Raises:
+            DiscardedEntityError: When getting, if this column has been discarded.
+        """
+        self._check_not_discarded()
         return (self.wip_limit is None) or (self.number_of_work_items < self.wip_limit)
+
+    def work_item_ids(self):
+        """Obtain an iterator over the identifiers of work items in this column.
+
+        Returns:
+            An iterator over a series of work item ids.
+
+        Raises:
+            DiscardedEntityError: If this column has been discarded.
+        """
+        self._check_not_discarded()
+        return iter(self._work_item_ids)
 
     def _apply(self, event):
         mutate(self, event)
-
-    def work_item_ids(self):
-        return iter(self._work_item_ids)
 
 
 # ======================================================================================================================
@@ -604,4 +695,10 @@ class Repository:
         raise NotImplementedError
 
 
+# ======================================================================================================================
+# Exceptions - for signalling errors
+#
+
+class WorkLimitError(ConstraintError):
+    pass
 

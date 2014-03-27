@@ -4,6 +4,7 @@ from abc import ABCMeta, abstractmethod
 import datetime
 
 from singledispatch import singledispatch
+from kanban.domain.exceptions import ConsistencyError
 
 from kanban.domain.model.board import Board
 
@@ -76,8 +77,8 @@ def _when(event, projection):
 @_when.register(Board.WorkItemScheduled)
 def _(event, projection):
     if event.work_item_id in projection._work_item_start_times:
-        raise RuntimeError("Inconsistent event stream: Duplicate WorkItem scheduled "
-                           "with id {}".format(event.work_item_id))
+        raise ConsistencyError("Inconsistent event stream: Duplicate WorkItem scheduled "
+                               "with id {}".format(event.work_item_id))
     projection._work_item_start_times[event.work_item_id] = event.timestamp
     return projection
 
@@ -85,8 +86,8 @@ def _(event, projection):
 @_when.register(Board.WorkItemRetired)
 def _(event, projection):
     if event.work_item_id not in projection._work_item_start_times:
-        raise RuntimeError("Inconsistent event stream: Retiring non-existent WorkItem "
-                           "with id {}".format(event.work_item_id))
+        raise ConsistencyError("Inconsistent event stream: Retiring non-existent WorkItem "
+                               "with id {}".format(event.work_item_id))
     lead_time = event.timestamp - projection._work_item_start_times[event.work_item_id]
     projection._lead_times[event.work_item_id] = lead_time
     del projection._work_item_start_times[event.work_item_id]
@@ -96,7 +97,7 @@ def _(event, projection):
 @_when.register(Board.WorkItemAbandoned)
 def _(event, projection):
     if event.work_item_id not in projection._work_item_start_times:
-        raise RuntimeError("Inconsistent event stream: Abandoning non-existent {} "
-                           "for id {}".format(event.work_item_id))
+        raise ConsistencyError("Inconsistent event stream: Abandoning non-existent {} "
+                               "for id {}".format(event.work_item_id))
     del projection._work_item_start_times[event.work_item_id]
     return projection

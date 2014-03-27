@@ -1,3 +1,4 @@
+from kanban.domain.exceptions import ConstraintError, ConsistencyError
 from kanban.domain.model.domain_events import DomainEvent
 
 
@@ -39,10 +40,10 @@ class Entity:
 
     def _validate_event_originator(self, event):
         if event.originator_id != self.id:
-            raise RuntimeError("Event originator id mismatch: {} != {}".format(event.originator_id, self.id))
+            raise ConsistencyError("Event originator id mismatch: {} != {}".format(event.originator_id, self.id))
         if event.originator_version != self.version:
-            raise RuntimeError("Event originator version mismatch: {} != {}".format(event.originator_version,
-                                                                                    self.version))
+            raise ConsistencyError("Event originator version mismatch: {} != {}".format(event.originator_version,
+                                                                                        self.version))
 
     @property
     def discarded(self):
@@ -54,7 +55,7 @@ class Entity:
             raise DiscardedEntityError("Attempt to use {}".format(repr(self)))
 
 
-class DiscardedEntityError(ReferenceError):
+class DiscardedEntityError(ConstraintError):
     pass
 
 

@@ -3,6 +3,10 @@ import importlib
 from utility.utilities import resolve_attr
 
 
+class InconsistentEventStreamError(Exception):
+    pass
+
+
 class EventPlayer:
 
     def __init__(self, event_store, mutator, stream_primer=None, **kwargs):
@@ -59,14 +63,14 @@ def extant_entity_ids(event_store, entity_class_name):
             if topic.endswith(entity_class_name + '.Created'):
                 entity_id = event['attributes']['originator_id']
                 if entity_id in entity_ids:
-                    raise RuntimeError("Inconsistent event stream: Duplicate {} creation "
-                                       "for id {}".format(entity_class_name, entity_id))
+                    raise InconsistentEventStreamError("Inconsistent event stream: Duplicate {} creation "
+                                                       "for id {}".format(entity_class_name, entity_id))
                 entity_ids.add(entity_id)
 
             elif topic.endswith(entity_class_name + '.Discarded'):
                 entity_id = event['attributes']['originator_id']
                 if entity_id not in entity_ids:
-                    raise RuntimeError("Inconsistent event stream: Discarding non-existent {} "
-                                       "for id {}".format(entity_class_name, entity_id))
+                    raise InconsistentEventStreamError("Inconsistent event stream: Discarding non-existent {} "
+                                                       "for id {}".format(entity_class_name, entity_id))
                 entity_ids.discard(entity_id)
     return entity_ids
