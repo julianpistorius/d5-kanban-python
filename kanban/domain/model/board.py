@@ -373,10 +373,10 @@ class Board(Entity):
                                  "at or exceeding its work-in-progress limit".format(self._columns[next_column_index]))
 
         event = Board.WorkItemAdvanced(originator_id=self.id,
-                                      originator_version=self.version,
-                                      work_item_id=work_item.id,
-                                      source_column_index=column_index,
-                                      priority=priority)
+                                       originator_version=self.version,
+                                       work_item_id=work_item.id,
+                                       source_column_index=column_index,
+                                       priority=priority)
         self._apply(event)
         self._publish(event)
 

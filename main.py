@@ -47,16 +47,16 @@ def main():
                                          hub=hub)
 
     work_item_3 = register_new_work_item(name="Feature 3",
-                                         due_date=date(2013, 8, 13),
+                                         due_date=None,
                                          content="Here's some info about how to make feature 3",
                                          hub=hub)
 
     work_item_4 = register_new_work_item(name="Feature 4",
-                                         due_date=date(2013, 8, 13),
+                                         due_date=date(2015, 3, 2),
                                          content="Here's some info about how to make feature 3",
                                          hub=hub)
 
-    #print(repr(work_item_4))
+    work_item_4.due_date = None
 
     work_item_repo = WorkItemRepository(es, hub)
 

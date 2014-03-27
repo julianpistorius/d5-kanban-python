@@ -1,7 +1,3 @@
-
-# ======================================================================================================================
-# Aggregate root entity
-#
 from abc import ABCMeta, abstractmethod
 import reprlib
 import uuid
@@ -9,6 +5,10 @@ from singledispatch import singledispatch
 from kanban.domain.model.entity import Entity
 from utility.utilities import exactly_one
 
+
+# ======================================================================================================================
+# Aggregate root entity
+#
 
 class WorkItem(Entity):
 
@@ -31,7 +31,7 @@ class WorkItem(Entity):
             d="*Discarded* " if self._discarded else "",
             id=self.id,
             name=self._name,
-            date=self._due_date.isoformat(),
+            date=self._due_date and self._due_date.isoformat(),
             content=reprlib.repr(self._content))
 
     @property
@@ -58,6 +58,13 @@ class WorkItem(Entity):
 
     @property
     def due_date(self):
+        """An optional due-date.
+
+        If the work item has no due-date, this property will be None.
+
+        Raises:
+            DiscardedEntityError: When getting or setting, ff this work item has been discarded.
+        """
         self._check_not_discarded()
         return self._due_date
 
@@ -85,6 +92,10 @@ class WorkItem(Entity):
                                         value=value)
         self._apply(event)
         self._publish(event)
+
+    def _apply(self, event):
+        mutate(self, event)
+
 
 # ======================================================================================================================
 # Factories - the aggregate root factory
