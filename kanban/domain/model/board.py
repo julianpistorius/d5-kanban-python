@@ -297,9 +297,11 @@ class Board(Entity):
         if work_item in self:
             raise ConstraintError("{!r} is already scheduled".format(work_item))
 
-        if not self._columns[0].can_accept_work_item():
+        first_column = self._columns[0]
+
+        if not first_column.can_accept_work_item():
             raise WorkLimitError("Cannot schedule a work item to {}, "
-                               "at or exceeding its work-in-progress limit".format(self._columns[0]))
+                                 "at or exceeding its work-in-progress limit".format(first_column))
 
         event = Board.WorkItemScheduled(originator_id=self.id,
                                         originator_version=self.version,
@@ -649,18 +651,24 @@ def _(event, board):
     designated_work_item_id = source_column._work_item_ids[event.priority]
     assert designated_work_item_id == event.work_item_id
     source_column._work_item_ids.remove(event.work_item_id)
-    destination_column = board._columns[event.source_column_index + 1]
+    destination_column_index = event.source_column_index + 1
+    destination_column = board._columns[destination_column_index]
     destination_column._work_item_ids.append(event.work_item_id)
+    board._increment_version()
+    source_column._increment_version()
+    destination_column._increment_version()
     return board
 
 
 @_when.register(Board.WorkItemRetired)
 def _(event, board):
     board._validate_event_originator(event)
-    column = board._columns[-1]
-    designated_work_item_id = column._work_item_ids[event.priority]
+    last_column = board._columns[-1]
+    designated_work_item_id = last_column._work_item_ids[event.priority]
     assert designated_work_item_id == event.work_item_id
-    del column._work_item_ids[event.priority]
+    del last_column._work_item_ids[event.priority]
+    last_column._increment_version()
+    board._increment_version()
     return board
 
 
