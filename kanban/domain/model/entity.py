@@ -2,6 +2,10 @@ from kanban.domain.exceptions import ConstraintError, ConsistencyError
 from kanban.domain.model.domain_events import DomainEvent
 
 
+# ======================================================================================================================
+# Entities
+#
+
 class Entity:
 
     class Created(DomainEvent):
@@ -54,6 +58,10 @@ class Entity:
         if self._discarded:
             raise DiscardedEntityError("Attempt to use {}".format(repr(self)))
 
+
+# ======================================================================================================================
+# Exceptions - domain exceptions
+#
 
 class DiscardedEntityError(ConstraintError):
     pass

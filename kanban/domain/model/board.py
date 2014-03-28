@@ -195,7 +195,7 @@ class Board(Entity):
 
     def _validate_column_removable(self, column):
         column = self._validate_column(column)
-        if column.number_of_work_items() > 0:
+        if column.number_of_work_items > 0:
             raise ConstraintError("Cannot remove non-empty {!r}".format(column))
         return column
 

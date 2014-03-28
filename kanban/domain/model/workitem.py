@@ -23,7 +23,7 @@ class WorkItem(Entity):
         """
         super().__init__(event.originator_id, event.originator_version, hub)
         self._name = event.name
-        self._due_date=event.due_date
+        self._due_date = event.due_date
         self._content = event.content
 
     def __repr__(self):
