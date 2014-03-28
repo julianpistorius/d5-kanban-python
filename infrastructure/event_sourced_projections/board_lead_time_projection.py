@@ -1,6 +1,6 @@
 from infrastructure.event_processing import EventPlayer
 from kanban.domain.model import lead_time
-from utility.utilities import consume
+from utility.itertools import consume
 
 
 class LeadTimeProjection(lead_time.LeadTimeProjection, EventPlayer):
@@ -8,9 +8,8 @@ class LeadTimeProjection(lead_time.LeadTimeProjection, EventPlayer):
 
     """
 
-    def __init__(self, board_id, event_store, hub, **kwargs):
+    def __init__(self, board_id, event_store, **kwargs):
         super().__init__(board_id=board_id,
-                         hub=hub,
                          event_store=event_store,
                          mutator=lead_time.mutate,
                          stream_primer=self,

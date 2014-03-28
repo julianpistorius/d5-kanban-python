@@ -1,12 +1,11 @@
-from kanban.domain.model.domain_events import DomainEvent
+from kanban.domain.model.domain_events import DomainEvent, subscribe
 
 
 class PersistenceSubscriber:
 
-    def __init__(self, hub, event_store):
-        self._hub = hub
+    def __init__(self, event_store):
         self._event_store = event_store
-        self._hub.subscribe(lambda event: isinstance(event, DomainEvent), self.store_event)
+        subscribe(lambda event: isinstance(event, DomainEvent), self.store_event)
         self._event_store = event_store
 
     @staticmethod

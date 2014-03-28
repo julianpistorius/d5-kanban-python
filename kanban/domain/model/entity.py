@@ -17,10 +17,9 @@ class Entity:
     class AttributeChanged(DomainEvent):
         pass
 
-    def __init__(self, id, version, hub):
+    def __init__(self, id, version):
         self._id = id
         self._version = version
-        self._hub = hub
         self._discarded = False
 
     def _increment_version(self):
@@ -37,10 +36,6 @@ class Entity:
         """An integer version for the entity."""
         self._check_not_discarded()
         return self._version
-
-    def _publish(self, event):
-        if self._hub:
-            self._hub.publish(event)
 
     def _validate_event_originator(self, event):
         if event.originator_id != self.id:

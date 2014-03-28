@@ -3,8 +3,7 @@
 
 import datetime
 from itertools import chain
-
-from utility.utilities import utc_now
+from utility.time import utc_now
 
 
 def locate_overdue_work_items(board, work_item_repo):

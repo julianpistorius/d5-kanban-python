@@ -4,9 +4,9 @@ import uuid
 
 from singledispatch import singledispatch
 from kanban.domain.exceptions import ConstraintError
+from utility.itertools import exactly_one
 
-from utility.utilities import exactly_one
-from kanban.domain.model.domain_events import DomainEvent
+from kanban.domain.model.domain_events import DomainEvent, publish
 from kanban.domain.model.entity import Entity, DiscardedEntityError
 
 
@@ -45,12 +45,12 @@ class Board(Entity):
     class WorkItemRetired(DomainEvent):
         pass
 
-    def __init__(self, event, hub=None):
+    def __init__(self, event):
         """Initialize a Board.
 
         Do NOT call directly. Use the start_project() factory method.
         """
-        super().__init__(event.originator_id, event.originator_version, hub)
+        super().__init__(event.originator_id, event.originator_version)
         # Validation not necessary here - never called directly
         self._name = event.name
         self._description = event.description
@@ -83,7 +83,7 @@ class Board(Entity):
                                         name='_name',
                                         value=Board._validate_name(value))
         self._apply(event)
-        self._publish(event)
+        publish(event)
 
     @property
     def description(self):
@@ -106,7 +106,7 @@ class Board(Entity):
                                         name='_description',
                                         value=Board._validate_description(value))
         self._apply(event)
-        self._publish(event)
+        publish(event)
 
     def discard(self):
         """Discard this board.
@@ -118,7 +118,7 @@ class Board(Entity):
                                 originator_version=self.version)
 
         self._apply(event)
-        self._publish(event)
+        publish(event)
 
     def _validate_column_name(self, name):
         if len(name) < 1:
@@ -156,7 +156,7 @@ class Board(Entity):
                                      column_name=self._validate_column_name(name),
                                      wip_limit=Board._validate_column_wip_limit(wip_limit))
         self._apply(event)
-        self._publish(event)
+        publish(event)
         return self.column_with_name(name)
 
     def _validate_column(self, column):
@@ -190,7 +190,7 @@ class Board(Entity):
                                         wip_limit=Board._validate_column_wip_limit(wip_limit),
                                         succeeding_column_id=self._validate_column(succeeding_column).id)
         self._apply(event)
-        self._publish(event)
+        publish(event)
         return self.column_with_name(name)
 
     def _validate_column_removable(self, column):
@@ -216,7 +216,7 @@ class Board(Entity):
                                     originator_version=self.version,
                                     column_id=self._validate_column_removable(column).id)
         self._apply(event)
-        self._publish(event)
+        publish(event)
 
     def remove_column(self, column):
         """Remove a column.
@@ -234,7 +234,7 @@ class Board(Entity):
                                     originator_version=self.version,
                                     column_id=self._validate_column_removable(column).id)
         self._apply(event)
-        self._publish(event)
+        publish(event)
 
     def column_names(self):
         """Obtain an iterator over the column names.
@@ -307,7 +307,7 @@ class Board(Entity):
                                         originator_version=self.version,
                                         work_item_id=work_item.id)
         self._apply(event)
-        self._publish(event)
+        publish(event)
 
     def __contains__(self, work_item):
         for column in self._columns:
@@ -338,7 +338,7 @@ class Board(Entity):
                                       column_index=column_index,
                                       priority=priority)
         self._apply(event)
-        self._publish(event)
+        publish(event)
 
     def _find_work_item_by_id(self, work_item_id):
         for column_index, column in enumerate(self._columns):
@@ -380,7 +380,7 @@ class Board(Entity):
                                        source_column_index=column_index,
                                        priority=priority)
         self._apply(event)
-        self._publish(event)
+        publish(event)
 
     def retire_work_item(self, work_item):
         """Retire a work item, removing it from the final column.
@@ -407,7 +407,7 @@ class Board(Entity):
                                       work_item_id=work_item.id,
                                       priority=priority)
         self._apply(event)
-        self._publish(event)
+        publish(event)
 
     def _apply(self, event):
         mutate(self, event)
@@ -419,9 +419,9 @@ class Board(Entity):
 
 class Column(Entity):
 
-    def __init__(self, event, board, hub):
+    def __init__(self, event, board):
         "DO NOT CALL DIRECTLY"
-        super().__init__(event.column_id, event.column_version, hub)
+        super().__init__(event.column_id, event.column_version)
         # Validation not necessary here - never called directly
         self._board = board
         self._name = event.column_name
@@ -462,7 +462,7 @@ class Column(Entity):
                                         name='_name',
                                         value=self._board._validate_column_name(value))
         self._apply(event)
-        self._publish(event)
+        publish(event)
 
 
     @property
@@ -489,7 +489,7 @@ class Column(Entity):
                                         name='_wip_limit',
                                         value=Board._validate_column_wip_limit(value))
         self._apply(event)
-        self._publish(event)
+        publish(event)
 
     @property
     def number_of_work_items(self):
@@ -535,7 +535,7 @@ class Column(Entity):
 # Factories - the aggregate root factory
 #
 
-def start_project(name, description, hub=None):
+def start_project(name, description):
     board_id = uuid.uuid4().hex
 
     event = Board.Created(originator_id=board_id,
@@ -543,8 +543,8 @@ def start_project(name, description, hub=None):
                           name=Board._validate_name(name),
                           description=Board._validate_description(description))
 
-    board = _when(event, hub)
-    board._publish(event)
+    board = _when(event)
+    publish(event)
     return board
 
 
@@ -571,9 +571,9 @@ def _(event, entity):
 
 
 @_when.register(Board.Created)
-def _(event, hub):
+def _(event, obj=None):
     """Create a new aggregate root"""
-    board = Board(event, hub)
+    board = Board(event)
     board._increment_version()
     return board
 
@@ -581,7 +581,7 @@ def _(event, hub):
 @_when.register(Board.NewColumnAdded)
 def _(event, board):
     board._validate_event_originator(event)
-    column = Column(event, board, hub=board._hub)
+    column = Column(event, board)
     board._columns.append(column)
     board._increment_version()
     return board
@@ -591,7 +591,7 @@ def _(event, board):
 def _(event, board):
     board._validate_event_originator(event)
     index = board._column_index_with_id(event.succeeding_column_id)
-    column = Column(event, board, hub=board._hub)
+    column = Column(event, board)
     board._columns.insert(index, column)
     board._increment_version()
     return board

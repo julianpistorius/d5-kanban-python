@@ -4,15 +4,13 @@ from kanban.domain.model import workitem
 
 class WorkItemRepository(workitem.Repository, EventPlayer):
 
-    def __init__(self, event_store, hub, **kwargs):
+    def __init__(self, event_store, **kwargs):
         """
         Args:
             event_store: An EventStore instance from which entities can be reconstituted.
-            hub: MessageHub
         """
         super().__init__(event_store=event_store,
                          mutator=workitem.mutate,
-                         stream_primer=hub,
                          **kwargs)
 
     all_extant = object()

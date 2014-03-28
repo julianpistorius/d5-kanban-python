@@ -4,15 +4,13 @@ from kanban.domain.model import board
 
 class BoardRepository(board.Repository, EventPlayer):
 
-    def __init__(self, event_store, hub, **kwargs):
+    def __init__(self, event_store, **kwargs):
         """
         Args:
             event_store:
-            hub:
         """
         super().__init__(event_store=event_store,
                          mutator=board.mutate,
-                         stream_primer=hub,
                          **kwargs)
 
     def all_boards(self, board_ids=None):

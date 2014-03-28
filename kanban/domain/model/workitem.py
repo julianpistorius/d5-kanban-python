@@ -2,8 +2,9 @@ from abc import ABCMeta, abstractmethod
 import reprlib
 import uuid
 from singledispatch import singledispatch
+from kanban.domain.model.domain_events import publish
 from kanban.domain.model.entity import Entity
-from utility.utilities import exactly_one
+from utility.itertools import exactly_one
 
 
 # ======================================================================================================================
@@ -18,10 +19,10 @@ class WorkItem(Entity):
     class Discarded(Entity.Discarded):
         pass
 
-    def __init__(self, event, hub=None):
+    def __init__(self, event):
         """DO NOT CALL DIRECTLY.
         """
-        super().__init__(event.originator_id, event.originator_version, hub)
+        super().__init__(event.originator_id, event.originator_version)
         self._name = event.name
         self._due_date = event.due_date
         self._content = event.content
@@ -54,7 +55,7 @@ class WorkItem(Entity):
                                         name='_name',
                                         value=WorkItem._validate_name(value))
         self._apply(event)
-        self._publish(event)
+        publish(event)
 
     @property
     def due_date(self):
@@ -76,7 +77,7 @@ class WorkItem(Entity):
                                         name='_due_date',
                                         value=value)
         self._apply(event)
-        self._publish(event)
+        publish(event)
 
     @property
     def content(self):
@@ -91,7 +92,7 @@ class WorkItem(Entity):
                                         name='_content',
                                         value=value)
         self._apply(event)
-        self._publish(event)
+        publish(event)
 
     def _apply(self, event):
         mutate(self, event)
@@ -101,7 +102,7 @@ class WorkItem(Entity):
 # Factories - the aggregate root factory
 #
 
-def register_new_work_item(name, due_date=None, content=None, hub=None):
+def register_new_work_item(name, due_date=None, content=None):
     work_item_id = uuid.uuid4().hex
 
     event = WorkItem.Created(originator_id=work_item_id,
@@ -110,8 +111,8 @@ def register_new_work_item(name, due_date=None, content=None, hub=None):
                              due_date=due_date,
                              content=content)
 
-    work_item = _when(event, hub)
-    work_item._publish(event)
+    work_item = _when(event)
+    publish(event)
     return work_item
 
 
@@ -138,8 +139,8 @@ def _(event, entity):
 
 
 @_when.register(WorkItem.Created)
-def _(event, hub):
-    work_item = WorkItem(event, hub)
+def _(event, obj=None):
+    work_item = WorkItem(event)
     work_item._increment_version()
     return work_item
 

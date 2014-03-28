@@ -7,6 +7,7 @@ from singledispatch import singledispatch
 from kanban.domain.exceptions import ConsistencyError
 
 from kanban.domain.model.board import Board
+from kanban.domain.model.domain_events import subscribe, unsubscribe
 
 
 class LeadTimeProjection:
@@ -14,16 +15,15 @@ class LeadTimeProjection:
     """
     __metaclass__ = ABCMeta
 
-    def __init__(self, board_id, hub, **kwargs):
+    def __init__(self, board_id, **kwargs):
         self._board_id = board_id
-        self._hub = hub
         # noinspection PyArgumentList
         super().__init__(**kwargs)
         self._work_item_start_times = {}
         self._lead_times = {}
 
         self._load_events()
-        self._hub.subscribe(self._event_filter, self._handler)
+        subscribe(self._event_filter, self._handler)
 
     @property
     def board_id(self):
@@ -42,7 +42,7 @@ class LeadTimeProjection:
 
     def close(self):
         """No longer keep this projection up-to-date."""
-        self._hub.unsubscribe(self._event_filter, self._handler)
+        unsubscribe(self._event_filter, self._handler)
 
     @abstractmethod
     def _load_events(self):
