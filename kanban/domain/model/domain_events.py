@@ -26,8 +26,12 @@ class DomainEvent:
     def __ne__(self, rhs):
         return self.__dict__ != rhs.__dict__
 
+    def __hash__(self):
+        return hash(tuple(self.__dict__.items()))
+
     def __repr__(self):
-        return self.__class__.__qualname__ + "(" + ', '.join("{0}={1!r}".format(*item) for item in self.__dict__.items()) + ')'
+        return self.__class__.__qualname__ + "(" + ', '.join(
+            "{0}={1!r}".format(*item) for item in self.__dict__.items()) + ')'
 
 
 _event_handlers = {}
