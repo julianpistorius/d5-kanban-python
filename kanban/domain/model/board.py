@@ -364,20 +364,20 @@ class Board(Entity):
         if work_item.discarded:
             raise DiscardedEntityError("Cannot advance {!r}".format(work_item))
 
-        column_index, priority = self._find_work_item_by_id(work_item.id)
+        source_column_index, priority = self._find_work_item_by_id(work_item.id)
 
-        next_column_index = column_index + 1
-        if next_column_index >= len(self._columns):
+        destination_column_index = source_column_index + 1
+        if destination_column_index >= len(self._columns):
             raise ConstraintError("Cannot advance {!r} from last column of {!r}".format(work_item, self))
 
-        if not self._columns[next_column_index].can_accept_work_item():
+        if not self._columns[destination_column_index].can_accept_work_item():
             raise WorkLimitError("Cannot schedule a work item to {}, "
-                                 "at or exceeding its work-in-progress limit".format(self._columns[next_column_index]))
+                                 "at or exceeding its work-in-progress limit".format(self._columns[destination_column_index]))
 
         event = Board.WorkItemAdvanced(originator_id=self.id,
                                        originator_version=self.version,
                                        work_item_id=work_item.id,
-                                       source_column_index=column_index,
+                                       source_column_index=source_column_index,
                                        priority=priority)
         self._apply(event)
         publish(event)
