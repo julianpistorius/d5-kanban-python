@@ -1,5 +1,5 @@
 from kanban.domain.exceptions import ConstraintError, ConsistencyError
-from kanban.domain.model.domain_events import DomainEvent
+from kanban.domain.model.events import DomainEvent
 
 
 # ======================================================================================================================

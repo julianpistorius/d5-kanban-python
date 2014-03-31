@@ -2,7 +2,7 @@ from abc import ABCMeta, abstractmethod
 import reprlib
 import uuid
 from singledispatch import singledispatch
-from kanban.domain.model.domain_events import publish
+from kanban.domain.model.events import publish
 from kanban.domain.model.entity import Entity
 from utility.itertools import exactly_one
 

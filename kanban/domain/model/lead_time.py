@@ -7,7 +7,7 @@ from singledispatch import singledispatch
 from kanban.domain.exceptions import ConsistencyError
 
 from kanban.domain.model.board import Board
-from kanban.domain.model.domain_events import subscribe, unsubscribe
+from kanban.domain.model.events import subscribe, unsubscribe
 
 
 class LeadTimeProjection:

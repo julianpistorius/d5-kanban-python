@@ -6,7 +6,7 @@ from singledispatch import singledispatch
 from kanban.domain.exceptions import ConstraintError
 from utility.itertools import exactly_one
 
-from kanban.domain.model.domain_events import DomainEvent, publish
+from kanban.domain.model.events import DomainEvent, publish
 from kanban.domain.model.entity import Entity, DiscardedEntityError
 
 
@@ -15,7 +15,7 @@ from kanban.domain.model.entity import Entity, DiscardedEntityError
 #
 
 class Board(Entity):
-    """A kanban board which can track the progress of work items through a step-wise process.
+    """A Kanban board which can track the progress of work items through a step-wise process.
     """
 
     class Created(Entity.Created):
