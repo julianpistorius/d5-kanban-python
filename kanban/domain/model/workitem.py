@@ -154,7 +154,7 @@ def _(event, work_item):
 
 
 # ======================================================================================================================
-# Mutators - all aggregate creation and mutation is performed by the generic _when() function.
+# Repository - for retrieving existing aggregates
 #
 
 class Repository:
