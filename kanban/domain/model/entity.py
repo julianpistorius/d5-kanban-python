@@ -1,4 +1,4 @@
-from kanban.domain.exceptions import ConstraintError, ConsistencyError
+from kanban.domain.exceptions import ConsistencyError
 from kanban.domain.model.events import DomainEvent
 
 
@@ -7,6 +7,13 @@ from kanban.domain.model.events import DomainEvent
 #
 
 class Entity:
+    """The base class of all entities.
+
+    Attributes:
+        id: A unique identifier.
+        version: An integer version.
+        discarded: True if this entity should no longer be used, otherwise False.
+    """
 
     class Created(DomainEvent):
         pass
@@ -55,11 +62,9 @@ class Entity:
 
 
 # ======================================================================================================================
-# Exceptions - domain exceptions
+# Exceptions - for signalling errors
 #
 
-class DiscardedEntityError(ConstraintError):
+class DiscardedEntityError(Exception):
+    """Raised when an attempt is made to use a discarded Entity."""
     pass
-
-
-
