@@ -3,9 +3,10 @@ from abc import ABCMeta, abstractmethod
 import uuid
 
 from singledispatch import singledispatch
-from kanban.domain.exceptions import ConstraintError
+
 from utility.itertools import exactly_one
 
+from kanban.domain.exceptions import ConstraintError
 from kanban.domain.model.events import DomainEvent, publish
 from kanban.domain.model.entity import Entity, DiscardedEntityError
 
