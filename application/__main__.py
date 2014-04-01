@@ -5,7 +5,7 @@ from infrastructure.event_sourced_projections.board_lead_time_projection import 
 from infrastructure.event_sourced_repos.board_repository import BoardRepository
 from infrastructure.event_sourced_repos.work_item_repository import WorkItemRepository
 from infrastructure.event_store import EventStore
-from infrastructure.domain_event_subscriber import PersistenceSubscriber
+from infrastructure.persistence_subscriber import PersistenceSubscriber
 
 from kanban.domain.model.board import start_project
 from kanban.domain.model.workitem import register_new_work_item
@@ -83,8 +83,7 @@ def main():
     print(lead_time_projection.average_lead_time)
 
     lead_time_projection.close()
-
-    pass
+    ps.close()
 
 if __name__ == '__main__':
     main()

@@ -1,11 +1,11 @@
-from kanban.domain.model.events import DomainEvent, subscribe
+from kanban.domain.model.events import DomainEvent, subscribe, unsubscribe
 
 
 class PersistenceSubscriber:
 
     def __init__(self, event_store):
         self._event_store = event_store
-        subscribe(lambda event: isinstance(event, DomainEvent), self.store_event)
+        subscribe(PersistenceSubscriber._all_events, self.store_event)
         self._event_store = event_store
 
     @staticmethod
@@ -16,3 +16,10 @@ class PersistenceSubscriber:
         topic = self.qualified_name(event)
         attributes = event.__dict__
         self._event_store.append(topic=topic, **attributes)
+
+    @staticmethod
+    def _all_events(event):
+        return isinstance(event, DomainEvent)
+
+    def close(self):
+        unsubscribe(self._all_events, self.store_event)
