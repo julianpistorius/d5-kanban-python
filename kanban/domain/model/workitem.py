@@ -1,10 +1,13 @@
 from abc import ABCMeta, abstractmethod
 import reprlib
 import uuid
+
 from singledispatch import singledispatch
+
+from utility.itertools import exactly_one
+
 from kanban.domain.model.events import publish
 from kanban.domain.model.entity import Entity
-from utility.itertools import exactly_one
 
 
 # ======================================================================================================================
@@ -167,7 +170,7 @@ class Repository:
     def all_work_items(self, work_item_ids=None):
         return self.work_items_where(lambda work_item: True, work_item_ids)
 
-    def works_items_with_name(self, name, work_item_ids=None):
+    def work_items_with_name(self, name, work_item_ids=None):
         return self.work_items_where(lambda work_item: work_item.name == name,
                                      work_item_ids)
 
