@@ -61,7 +61,6 @@ class LeadTimeProjection:
         mutate(self, event)
 
 
-
 # ======================================================================================================================
 # Mutators - all projection mutation is performed by the generic _when() function.
 #
