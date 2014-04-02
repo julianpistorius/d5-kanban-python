@@ -1,3 +1,4 @@
+import itertools
 from utility.time import utc_now
 
 _now = object()
@@ -20,13 +21,16 @@ class DomainEvent:
         raise AttributeError("DomainEvent attributes are read-only")
 
     def __eq__(self, rhs):
+        if type(self) is not type(rhs):
+            return NotImplemented
         return self.__dict__ == rhs.__dict__
 
     def __ne__(self, rhs):
-        return self.__dict__ != rhs.__dict__
+        return not (self == rhs)
 
     def __hash__(self):
-        return hash(tuple(self.__dict__.items()))
+        return hash(tuple(itertools.chain(self.__dict__.items(),
+                                          [type(self)])))
 
     def __repr__(self):
         return self.__class__.__qualname__ + "(" + ', '.join(
