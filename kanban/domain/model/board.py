@@ -687,9 +687,9 @@ class Repository:
     def all_boards(self, board_ids=None):
         return self.boards_where(lambda board: True, board_ids)
 
-    def board_with_name(self, name, board_ids=None):
+    def boards_with_name(self, name, board_ids=None):
         try:
-            return exactly_one(self.boards_where(lambda board: board.name == name, board_ids))
+            return self.boards_where(lambda board: board.name == name, board_ids)
         except ValueError as e:
             raise ValueError("No Board with name {}".format(name)) from e
 

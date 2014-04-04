@@ -72,7 +72,7 @@ def main():
     pp(list(overdue_work_items))
 
     board_repo = BoardRepository(es)
-    board_2 = board_repo.board_with_id(board_id)
+    boards = board_repo.boards_with_name("Another name")
 
     lead_time_projection = LeadTimeProjection(board_id, es)
     print(lead_time_projection.average_lead_time)
