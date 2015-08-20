@@ -554,6 +554,7 @@ def start_project(name, description):
 def mutate(obj, event):
     return _when(event, obj)
 
+
 # These dispatch on the type of the first arg, hence (event, self)
 @singledispatch
 def _when(event, entity):
@@ -707,4 +708,3 @@ class Repository(metaclass=ABCMeta):
 
 class WorkLimitError(ConstraintError):
     pass
-
