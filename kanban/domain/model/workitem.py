@@ -160,8 +160,7 @@ def _(event, work_item):
 # Repository - for retrieving existing aggregates
 #
 
-class Repository:
-    __metaclass__ = ABCMeta
+class Repository(metaclass=ABCMeta):
 
     def __init__(self, **kwargs):
         # noinspection PyArgumentList
