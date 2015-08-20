@@ -126,6 +126,7 @@ def register_new_work_item(name, due_date=None, content=None):
 def mutate(obj, event):
     return _when(event, obj)
 
+
 # These dispatch on the type of the first arg, hence (event, self)
 @singledispatch
 def _when(event, entity):
