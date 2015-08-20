@@ -151,7 +151,6 @@ def _(event, obj=None):
 @_when.register(WorkItem.Discarded)
 def _(event, work_item):
     work_item._validate_event_originator(event)
-
     work_item._discarded = True
     work_item._increment_version()
 
