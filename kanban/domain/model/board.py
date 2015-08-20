@@ -334,10 +334,10 @@ class Board(Entity):
         column_index, priority = self._find_work_item_by_id(work_item.id)
 
         event = Board.WorkItemAbandoned(originator_id=self.id,
-                                      originator_version=self.version,
-                                      work_item_id=work_item.id,
-                                      column_index=column_index,
-                                      priority=priority)
+                                        originator_version=self.version,
+                                        work_item_id=work_item.id,
+                                        column_index=column_index,
+                                        priority=priority)
         self._apply(event)
         publish(event)
 
@@ -432,9 +432,9 @@ class Column(Entity):
     def __repr__(self):
         return ("{d}Column(id={c._id}, board_id={c._board.id!r} name={c._name!r}, "
                 "wip_limit={c._wip_limit}, work_items=[0..{n}])".format(
-                d="*Discarded* " if self._discarded else "",
-                c=self,
-                n=len(self._work_item_ids)))
+                    d="*Discarded* " if self._discarded else "",
+                    c=self,
+                    n=len(self._work_item_ids)))
 
     def __contains__(self, work_item):
         """Determine whether a particular work item is present in this column.
