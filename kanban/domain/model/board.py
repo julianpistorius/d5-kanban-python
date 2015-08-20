@@ -465,7 +465,6 @@ class Column(Entity):
         self._apply(event)
         publish(event)
 
-
     @property
     def wip_limit(self):
         """The current work-in-progress limit.
@@ -479,7 +478,6 @@ class Column(Entity):
         """
         self._check_not_discarded()
         return self._wip_limit
-
 
     @wip_limit.setter
     def wip_limit(self, value):
