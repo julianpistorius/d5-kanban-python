@@ -73,6 +73,7 @@ class LeadTimeProjection(metaclass=ABCMeta):
 def mutate(obj, event):
     return _when(event, obj)
 
+
 @singledispatch
 def _when(event, projection):
     return projection
