@@ -67,7 +67,7 @@ class WorkItem(Entity):
         If the work item has no due-date, this property will be None.
 
         Raises:
-            DiscardedEntityError: When getting or setting, ff this work item has been discarded.
+            DiscardedEntityError: When getting or setting, if this work item has been discarded.
         """
         self._check_not_discarded()
         return self._due_date
