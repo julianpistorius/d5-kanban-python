@@ -10,11 +10,10 @@ from kanban.domain.model.board import Board
 from kanban.domain.model.events import subscribe, unsubscribe
 
 
-class LeadTimeProjection:
+class LeadTimeProjection(metaclass=ABCMeta):
     """A projection which tracks the lead time for work items with respect to a
     specified Board.
     """
-    __metaclass__ = ABCMeta
 
     def __init__(self, board_id, **kwargs):
         """Create a new LeadTimeProjection.
