@@ -132,7 +132,8 @@ class Board(Entity):
     @staticmethod
     def _validate_column_wip_limit(wip_limit):
         if wip_limit is not None and wip_limit < 0:
-            raise ValueError("Work-in-progress limit {!r} is neither None (no limit) nor non-negative".format(wip_limit))
+            raise ValueError("Work-in-progress limit {!r} is neither "
+                             "None (no limit) nor non-negative".format(wip_limit))
         return wip_limit
 
     def add_new_column(self, name, wip_limit):
@@ -373,7 +374,8 @@ class Board(Entity):
 
         if not self._columns[destination_column_index].can_accept_work_item():
             raise WorkLimitError("Cannot schedule a work item to {}, "
-                                 "at or exceeding its work-in-progress limit".format(self._columns[destination_column_index]))
+                                 "at or exceeding its work-in-progress "
+                                 "limit".format(self._columns[destination_column_index]))
 
         event = Board.WorkItemAdvanced(originator_id=self.id,
                                        originator_version=self.version,
