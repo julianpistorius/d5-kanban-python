@@ -270,11 +270,11 @@ class Board(Entity):
                 return column
         raise ValueError("No column with name '{}'".format(name))
 
-    def _column_index_with_id(self, id):
+    def _column_index_with_id(self, identifier):
         for index, column in enumerate(self._columns):
-            if column.id == id:
+            if column.id == identifier:
                 return index
-        raise ValueError("No column with id '{}'".format(id))
+        raise ValueError("No column with id '{}'".format(identifier))
 
     def schedule_work_item(self, work_item):
         """Enqueue a work item in the first column.
