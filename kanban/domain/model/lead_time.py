@@ -51,7 +51,7 @@ class LeadTimeProjection(metaclass=ABCMeta):
 
     @abstractmethod
     def _load_events(self):
-        """Initalize the projection with historical events."""
+        """Initialize the projection with historical events."""
         raise NotImplementedError
 
     def _event_filter(self, event):
