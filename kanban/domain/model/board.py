@@ -573,7 +573,7 @@ def _(event, entity):
 
 
 @_when.register(Board.Created)
-def _(event, obj=None):
+def _(event, _):
     """Create a new aggregate root"""
     board = Board(event)
     board._increment_version()
