@@ -144,6 +144,7 @@ def _(event, entity):
 
 @_when.register(WorkItem.Created)
 def _(event, obj=None):
+    _ = obj  # Ignore unused argument
     work_item = WorkItem(event)
     work_item._increment_version()
     return work_item
