@@ -131,7 +131,7 @@ def mutate(obj, event):
 @singledispatch
 def _when(event, entity):
     """Modify an entity (usually an aggregate root) by replaying an event."""
-    raise NotImplementedError("No _when() implementation for {!r}".format(event))
+    raise NotImplementedError("No _when() implementation for {!r} against {!r}".format(event, entity))
 
 
 @_when.register(Entity.AttributeChanged)
