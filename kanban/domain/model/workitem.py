@@ -110,7 +110,7 @@ def register_new_work_item(name, due_date=None, content=None):
 
     event = WorkItem.Created(originator_id=work_item_id,
                              originator_version=0,
-                             name=name,
+                             name=WorkItem._validate_name(name),
                              due_date=due_date,
                              content=content)
 
