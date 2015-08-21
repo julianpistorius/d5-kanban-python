@@ -76,6 +76,7 @@ def mutate(obj, event):
 
 @singledispatch
 def _when(event, projection):
+    _ = event
     return projection
 
 
