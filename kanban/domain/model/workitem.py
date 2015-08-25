@@ -19,9 +19,6 @@ class WorkItem(Entity):
     class Created(Entity.Created):
         pass
 
-    class Discarded(Entity.Discarded):
-        pass
-
     def __init__(self, event):
         """DO NOT CALL DIRECTLY.
         """
@@ -148,13 +145,6 @@ def _(event, unused=None):
     work_item = WorkItem(event)
     work_item._increment_version()
     return work_item
-
-
-@_when.register(WorkItem.Discarded)
-def _(event, work_item):
-    work_item._validate_event_originator(event)
-    work_item._discarded = True
-    work_item._increment_version()
 
 
 # ======================================================================================================================
