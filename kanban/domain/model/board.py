@@ -571,11 +571,10 @@ def _(event, entity):
     entity._increment_version()
     return entity
 
-
 @_when.register(Board.Created)
-def _(event, board):
+def _(event, unused=None):
     """Create a new aggregate root"""
-    _ = board  # Ignore unused argument
+    assert unused is None
     board = Board(event)
     board._increment_version()
     return board
