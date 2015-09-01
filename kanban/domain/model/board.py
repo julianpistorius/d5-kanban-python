@@ -576,7 +576,6 @@ def _(event, unused=None):
     """Create a new aggregate root"""
     assert unused is None
     board = Board(event)
-    board._increment_version()
     return board
 
 

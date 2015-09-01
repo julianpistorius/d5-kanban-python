@@ -143,7 +143,6 @@ def _(event, entity):
 def _(event, unused=None):
     assert unused is None
     work_item = WorkItem(event)
-    work_item._increment_version()
     return work_item
 
 
