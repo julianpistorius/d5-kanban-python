@@ -679,10 +679,6 @@ def _(event, board):
 
 class Repository(metaclass=ABCMeta):
 
-    def __init__(self, **kwargs):
-        # noinspection PyArgumentList
-        super().__init__(**kwargs)
-
     def all_boards(self, board_ids=None):
         return self.boards_where(lambda board: True, board_ids)
 
