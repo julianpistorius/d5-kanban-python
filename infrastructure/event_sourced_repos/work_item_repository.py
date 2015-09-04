@@ -33,13 +33,20 @@ class WorkItemRepository(workitem.Repository, EventPlayer):
         return self._replay_events(work_item_ids)
 
     def work_items_where(self, predicate, work_item_ids=None):
-        """Obtain all WorkItems which match a predicate.
+        """Obtain WorkItem instances.
+
+        Retrieve WorkItem instances which satisfy a predicate function. The
+        series of WorkItems to be tested against the predicate can be further
+        contrained by an optional series of work_item_ids.
 
         Args:
-            predicate: A single argument function used to identify the work items to be returned.
+            predicate: A unary callable agaist which candidate WorkItems will be
+                tested. Only those WorkItems for which the function returns True
+                will be in the result collection.
 
-            work_items_ids: An optional list of work item ids used to restrict the results.
-                If not provided, all work items which match the predicate will be returned.
+            work_item_ids: An optional iterable series of WorkItem ids. If
+                not None, only those WorkItems whose ids are in this series will
+                be in the result collection.
 
         Returns:
             An iterable series of WorkItems.
