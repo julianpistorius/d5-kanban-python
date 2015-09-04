@@ -152,10 +152,6 @@ def _(event, unused=None):
 
 class Repository(metaclass=ABCMeta):
 
-    def __init__(self, **kwargs):
-        # noinspection PyArgumentList
-        super().__init__(**kwargs)
-
     def all_work_items(self, work_item_ids=None):
         return self.work_items_where(lambda work_item: True, work_item_ids)
 
@@ -171,4 +167,22 @@ class Repository(metaclass=ABCMeta):
 
     @abstractmethod
     def work_items_where(self, predicate, work_item_ids=None):
+        """Obtain WorkItem instances.
+
+        Retrieve WorkItem instances which satisfy a predicate function. The
+        series of WorkItems to be tested against the predicate can be further
+        contrained by an optional series of work_item_ids.
+
+        Args:
+            predicate: A unary callable agaist which candidate WorkItems will be
+                tested. Only those WorkItems for which the function returns True
+                will be in the result collection.
+
+            work_item_ids: An optional iterable series of WorkItem ids. If
+                not None, only those WorkItems whose ids are in this series will
+                be in the result collection.
+
+        Returns:
+            An iterable series of WorkItems.
+        """
         raise NotImplementedError
