@@ -29,7 +29,9 @@ class WorkItemRepository(workitem.Repository, EventPlayer):
         """
 
         if work_item_ids is None:
-            work_item_ids = extant_entity_ids(self._event_store, entity_class_name='WorkItem')
+            work_item_ids = extant_entity_ids(
+                event_store=self._event_store,
+                entity_class_name='WorkItem')
         return self._replay_events(work_item_ids)
 
     def work_items_where(self, predicate, work_item_ids=None):
@@ -52,6 +54,8 @@ class WorkItemRepository(workitem.Repository, EventPlayer):
             An iterable series of WorkItems.
         """
         if work_item_ids is None:
-            work_item_ids = extant_entity_ids(self._event_store, entity_class_name='WorkItem')
+            work_item_ids = extant_entity_ids(
+                event_store=self._event_store,
+                entity_class_name='WorkItem')
         work_items = self._replay_events(work_item_ids)
         return filter(predicate, work_items)
