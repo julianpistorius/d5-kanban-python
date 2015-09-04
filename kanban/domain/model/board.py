@@ -696,6 +696,24 @@ class Repository(metaclass=ABCMeta):
 
     @abstractmethod
     def boards_where(self, predicate, board_ids=None):
+        """Obtain Board instances.
+
+        Retrieve Board instances which satisfy a predicate function. The
+        series of Boards to be tested against the predicate can be further
+        constrained by an optional series of board_ids.
+
+        Args:
+            predicate: A unary callable against which candidate Boards will be
+                tested. Only those Boards for which the function returns True
+                will be in the result collection.
+
+            board_ids: An optional iterable series of Board ids. If
+                not None, only those Boards whose ids are in this series will
+                be in the result collection.
+
+        Returns:
+            An iterable series of Boards.
+        """
         raise NotImplementedError
 
 

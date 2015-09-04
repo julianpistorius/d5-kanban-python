@@ -171,12 +171,12 @@ class Repository(metaclass=ABCMeta):
 
         Retrieve WorkItem instances which satisfy a predicate function. The
         series of WorkItems to be tested against the predicate can be further
-        contrained by an optional series of work_item_ids.
+        constrained by an optional series of work_item_ids.
 
         Args:
-            predicate: A unary callable agaist which candidate WorkItems will be
-                tested. Only those WorkItems for which the function returns True
-                will be in the result collection.
+            predicate: A unary callable against which candidate WorkItems will
+                be tested. Only those WorkItems for which the function returns
+                True will be in the result collection.
 
             work_item_ids: An optional iterable series of WorkItem ids. If
                 not None, only those WorkItems whose ids are in this series will

@@ -28,22 +28,33 @@ class BoardRepository(board.Repository, EventPlayer):
             An iterable series of Boards.
         """
         if board_ids is None:
-            board_ids = extant_entity_ids(self._event_store, entity_class_name='Board')
+            board_ids = extant_entity_ids(
+                event_store=self._event_store,
+                entity_class_name='Board')
         return self._replay_events(board_ids)
 
     def boards_where(self, predicate, board_ids=None):
-        """Obtain all Boards which match a predicate.
+        """Obtain Board instances.
+
+        Retrieve Board instances which satisfy a predicate function. The
+        series of Boards to be tested against the predicate can be further
+        constrained by an optional series of board_ids.
 
         Args:
-            predicate: A single argument function used to identify the boards to be returned.
+            predicate: A unary callable against which candidate Boards will be
+                tested. Only those Boards for which the function returns True
+                will be in the result collection.
 
-            board_ids: An optional list of work item ids used to restrict the results.
-                If not provided, all boards which match the predicate will be returned.
+            board_ids: An optional iterable series of Board ids. If
+                not None, only those Boards whose ids are in this series will
+                be in the result collection.
 
         Returns:
             An iterable series of Boards.
         """
         if board_ids is None:
-            board_ids = extant_entity_ids(self._event_store, entity_class_name='Board')
+            board_ids = extant_entity_ids(
+                event_store=self._event_store,
+                entity_class_name='Board')
         boards = self._replay_events(board_ids)
         return filter(predicate, boards)

@@ -39,7 +39,7 @@ class WorkItemRepository(workitem.Repository, EventPlayer):
 
         Retrieve WorkItem instances which satisfy a predicate function. The
         series of WorkItems to be tested against the predicate can be further
-        contrained by an optional series of work_item_ids.
+        constrained by an optional series of work_item_ids.
 
         Args:
             predicate: A unary callable agaist which candidate WorkItems will be
