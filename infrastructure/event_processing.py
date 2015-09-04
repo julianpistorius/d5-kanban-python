@@ -93,13 +93,17 @@ def deserialize_event(stored_event):
 
 
 def extant_entity_ids(event_store, entity_class_name):
-    """Scan events to get a list of extant entity ids.
+    """Scan all events in an event store to find extant entities of a specified type.
+
+    Use this function to find those entities which have been created, but not yet
+    discarded by the end of the event stream. Such entities are still 'extant'.
 
     Args:
         event_store: The event store to search.
 
-        entity_class_name. The entity class name within which particular Created and Discarded
-            events are to be found,
+        entity_class_name: The name of an entity class (as as string) within which
+            <EntityName>.Created and <EntityName>.Discarded event topics can be
+            found.
 
     Return:
         A set of extant entity ids.
